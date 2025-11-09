@@ -1,0 +1,8 @@
+/Users/mikamac/Documents/School/ING/PIAE/company-expenses-app/server/src/main/java/com/piae/expenses/CompanyExpensesApplication.java
+/Users/mikamac/Documents/School/ING/PIAE/company-expenses-app/server/src/main/java/com/piae/expenses/config/OpenApiConfig.java
+/Users/mikamac/Documents/School/ING/PIAE/company-expenses-app/server/src/main/java/com/piae/expenses/controller/EmployeeController.java
+/Users/mikamac/Documents/School/ING/PIAE/company-expenses-app/server/src/main/java/com/piae/expenses/dto/EmployeeDTO.java
+/Users/mikamac/Documents/School/ING/PIAE/company-expenses-app/server/src/main/java/com/piae/expenses/entity/Employee.java
+/Users/mikamac/Documents/School/ING/PIAE/company-expenses-app/server/src/main/java/com/piae/expenses/exception/GlobalExceptionHandler.java
+/Users/mikamac/Documents/School/ING/PIAE/company-expenses-app/server/src/main/java/com/piae/expenses/repository/EmployeeRepository.java
+/Users/mikamac/Documents/School/ING/PIAE/company-expenses-app/server/src/main/java/com/piae/expenses/service/EmployeeService.java

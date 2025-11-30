@@ -1,0 +1,113 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "watch-server",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "watch",
+        "run",
+        "--project",
+        "${workspaceFolder}/company-expenses-server/company-expenses-server.csproj"
+      ],
+      "options": {
+        "env": {
+          "DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER": "true",
+          "ASPNETCORE_ENVIRONMENT": "Development",
+          "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": [{
+        "owner": "dotnet-watch",
+        "pattern": { "regexp": "^(.*)$", "file": 1, "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "dotnet watch",
+          "endsPattern": "Application started"
+        }
+      }]
+    },
+
+    {
+      "label": "start-app-client",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev"],
+      "options": {
+        "cwd": "${workspaceFolder}/company-expenses-app"
+      },
+      "isBackground": true,
+      "problemMatcher": [{
+        "owner": "vite",
+        "pattern": { "regexp": "^(.*)$", "file": 1, "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "VITE",
+          "endsPattern": "Local:"
+        }
+      }]
+    },
+
+    {
+      "label": "start-auth-server",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "watch",
+        "run",
+        "--project",
+        "${workspaceFolder}/company-expenses-auth/company-expenses-auth.csproj",
+        "--",
+        "--urls",
+        "https://localhost:7169;http://localhost:5169"
+      ],
+      "options": {
+        "env": {
+          "DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER": "true",
+          "DOTNET_WATCH_RESTART_ON_RUDE_EDIT": "true",
+          "DOTNET_WATCH_SUPPRESS_BROWSER_REFRESH": "true",
+          "ASPNETCORE_ENVIRONMENT": "Development",
+          "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": [{
+        "owner": "dotnet-watch",
+        "pattern": { "regexp": "^(.*)$", "file": 1, "message": 1 },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "dotnet watch",
+          "endsPattern": "Application started"
+        }
+      }]
+    },
+
+    {
+      "label": "watch-app-and-server",
+      "dependsOn": [
+        "watch-server",
+        "start-app-client"
+      ],
+      "problemMatcher": []
+    },
+
+    {
+      "label": "watch-auth-and-server",
+      "dependsOn": [
+        "start-auth-server"
+      ],
+      "problemMatcher": []
+    },
+
+    {
+      "label": "watch-auth-and-app",
+      "dependsOn": [
+        "start-auth-server",
+        "start-app-client"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

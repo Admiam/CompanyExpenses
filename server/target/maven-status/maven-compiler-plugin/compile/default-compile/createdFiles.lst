@@ -1,6 +1,0 @@
-com/piae/expenses/repository/EmployeeRepository.class
-com/piae/expenses/CompanyExpensesApplication.class
-com/piae/expenses/controller/EmployeeController.class
-com/piae/expenses/entity/Employee.class
-com/piae/expenses/dto/EmployeeDTO.class
-com/piae/expenses/service/EmployeeService.class

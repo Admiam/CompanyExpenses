@@ -1,0 +1,89 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug App Frontend (Brave) - No PreLaunch",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173/",
+      "webRoot": "${workspaceFolder}/company-expenses-app",
+      "runtimeArgs": [
+        "--remote-debugging-port=9222",
+        "--user-data-dir=${workspaceFolder}/.vscode/brave-debug-profile"
+      ],
+      "sourceMaps": true,
+      "smartStep": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "sourceMapPathOverrides": {
+        "vite:///*": "${webRoot}/*",
+        "http://localhost:5173/src/*": "${webRoot}/src/*",
+        "webpack:///*": "${webRoot}/*"
+      },
+      "presentation": { "hidden": true }
+    },
+
+    {
+      "name": "Debug Auth Frontend (Brave) - No PreLaunch",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5174/",
+      "webRoot": "${workspaceFolder}/company-expenses-auth",
+      "runtimeArgs": [
+        "--remote-debugging-port=9223",
+        "--user-data-dir=${workspaceFolder}/.vscode/brave-debug-profile-auth",
+        "--profile-directory=Default",
+        "--no-first-run"
+      ],
+      "sourceMaps": true,
+      "smartStep": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "sourceMapPathOverrides": {
+        "vite:///*": "${webRoot}/*",
+        "http://localhost:5174/src/*": "${webRoot}/src/*"
+      },
+      "presentation": { "hidden": true }
+    },
+
+    {
+      "name": "Debug Backend (.NET)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/company-expenses-server/bin/Debug/net10.0/company-expenses-server.dll",
+      "cwd": "${workspaceFolder}/company-expenses-server",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "https://localhost:7200;http://localhost:5200"
+      },
+      "console": "integratedTerminal",
+      "stopAtEntry": false,
+      "presentation": { "hidden": true }
+    }
+  ],
+
+  "compounds": [
+    {
+      "name": "🔥 App + Backend (Hot Reload)",
+      "configurations": [
+        "Debug App Frontend (Brave) - No PreLaunch"
+      ],
+      "preLaunchTask": "watch-app-and-server",
+      "stopAll": true
+    },
+    {
+      "name": "🔥 Auth + Backend (Hot Reload)",
+      "configurations": [
+        "Debug Auth Frontend (Brave) - No PreLaunch"
+      ],
+      "preLaunchTask": "watch-auth-and-server",
+      "stopAll": true
+    },
+    {
+      "name": "🛠 Debug App + Backend (Breakpoints)",
+      "configurations": [
+        "Debug Backend (.NET)",
+        "Debug App Frontend (Brave) - No PreLaunch"
+      ],
+      "stopAll": true
+    }
+  ]
+}

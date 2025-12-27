@@ -226,6 +226,8 @@ C:/Users/adm1a/source/repos/company-expenses-auth/company-expenses-auth/obj/Debu
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/bin/Debug/net10.0/appsettings.Development.json
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/bin/Debug/net10.0/appsettings.json
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/bin/Debug/net10.0/global.json
+/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/bin/Debug/net10.0/package-lock.json
+/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/bin/Debug/net10.0/package.json
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/bin/Debug/net10.0/company-expenses-auth.staticwebassets.runtime.json
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/bin/Debug/net10.0/company-expenses-auth.staticwebassets.endpoints.json
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/bin/Debug/net10.0/company-expenses-auth
@@ -388,6 +390,7 @@ C:/Users/adm1a/source/repos/company-expenses-auth/company-expenses-auth/obj/Debu
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/obj/Debug/net10.0/scopedcss/bundle/company-expenses-auth.styles.css
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/obj/Debug/net10.0/scopedcss/projectbundle/company-expenses-auth.bundle.scp.css
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/obj/Debug/net10.0/compressed/wyrrx1i7kd-{0}-khy4lop6wu-khy4lop6wu.gz
+/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/obj/Debug/net10.0/compressed/sp3ejxka2r-{0}-ofkv4yell3-ofkv4yell3.gz
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/obj/Debug/net10.0/compressed/b7pwa36tx7-{0}-bqjiyaj88i-bqjiyaj88i.gz
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/obj/Debug/net10.0/compressed/g0tzvutyet-{0}-c2jlpeoesf-c2jlpeoesf.gz
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/obj/Debug/net10.0/compressed/t6k9x8cv5q-{0}-erw9l3u2r3-erw9l3u2r3.gz
@@ -449,3 +452,4 @@ C:/Users/adm1a/source/repos/company-expenses-auth/company-expenses-auth/obj/Debu
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/obj/Debug/net10.0/company-expenses-auth.pdb
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/obj/Debug/net10.0/company-expenses-auth.genruntimeconfig.cache
 /Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/obj/Debug/net10.0/ref/company-expenses-auth.dll
+/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/obj/Debug/net10.0/compressed/tlojhekhoi-{0}-vvwifmphwp-vvwifmphwp.gz

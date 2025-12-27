@@ -37,7 +37,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+// Use SmtpEmailSender for production, IdentityNoOpEmailSender for development without email
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, SmtpEmailSender>();
 
 var app = builder.Build();
 

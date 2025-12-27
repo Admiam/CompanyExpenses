@@ -1,17 +1,30 @@
 ﻿@inherits LayoutComponentBase
 @layout company_expenses_auth.Components.Layout.MainLayout
 
-<h1>Manage your account</h1>
-
-<div>
-    <h2>Change your account settings</h2>
-    <hr />
-    <div class="row">
-        <div class="col-lg-3">
-            <ManageNavMenu />
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4" >
+    <div class="w-full" style="max-width: 50rem;">
+        <div class="mb-4">
+            <a href="/"
+                class="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition text-sm font-medium">
+                <span class="material-symbols-outlined" style="font-size: 20px;">
+                    arrow_back
+                </span>
+                <span>Back to Home</span>
+            </a>
         </div>
-        <div class="col-lg-9">
-            @Body
+
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-row" style="min-height: 30rem;">
+                <div class="bg-gray-50 border-r border-gray-200 p-6" style="min-width: 280px;">
+                    <div class="mb-3" style="padding-left: 0.75rem; padding-top: 0.75rem;">
+                        <h2 class="text-lg font-bold text-gray-900">Account Settings</h2>
+                        <p class="text-xs text-gray-600 mt-1">Manage your profile</p>
+                    </div>
+                    <ManageNavMenu />
+                </div>
+
+                <div class="flex-1 p-8">
+                    @Body
+                </div>
         </div>
     </div>
 </div>

@@ -1,0 +1,75 @@
+@page "/Account/LoginSuccess"
+
+<PageTitle>Login Successful</PageTitle>
+
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+    <div class="w-full max-w-6xl">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div class="grid md:grid-cols-2 gap-0">
+                <!-- Content Section -->
+                <div class="p-8 md:p-12 flex justify-center text-center" style="flex-direction: column">
+                    <div class="text-center mb-6">
+                        <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                            <span class="material-symbols-outlined text-green-600" style="font-size: 32px;">
+                                check_circle
+                            </span>
+                        </div>
+                        <h1 class="text-3xl font-bold text-gray-900 mb-2">Login Successful</h1>
+                        <p class="text-gray-600">
+                            You have successfully logged into your account
+                        </p>
+                    </div>
+
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                        <div class="flex items-start gap-3">
+                            <span class="material-symbols-outlined text-green-600 mt-0.5" style="font-size: 20px;">
+                                info
+                            </span>
+                            <p class="text-sm text-green-800">
+                                Welcome back! You can now access your Company Expenses dashboard and manage your
+                                account.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <a href="/dashboard"
+                            class="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition font-medium shadow-sm">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">
+                                dashboard
+                            </span>
+                            <span>Go to Dashboard</span>
+                        </a>
+
+                        @* <div class="text-center">
+                            <p class="text-sm text-gray-600">
+                                Or continue to
+                                <a href="/" class="text-blue-600 hover:text-blue-800 font-medium transition">
+                                    Home Page
+                                </a>
+                            </p>
+                        </div> *@
+                    </div>
+                </div>
+
+                <!-- Image Section -->
+                <div class="hidden md:block relative bg-gradient-to-br from-blue-600 to-purple-700">
+                    <div class="absolute inset-0 bg-black bg-opacity-20"></div>
+                    <img src="https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg"
+                        alt="Success background" class="w-full h-full object-cover mix-blend-overlay" />
+                    <div class="absolute inset-0 flex items-center justify-center p-12">
+                        <div class="text-white text-center">
+                            <span class="material-symbols-outlined mb-4" style="font-size: 64px;">
+                                celebration
+                            </span>
+                            <h2 class="text-4xl font-bold mb-4">Welcome Back!</h2>
+                            <p class="text-lg opacity-90">
+                                Ready to manage your expenses efficiently
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

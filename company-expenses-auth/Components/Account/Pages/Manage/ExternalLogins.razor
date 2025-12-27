@@ -11,55 +11,60 @@
 
 <PageTitle>Manage your external logins</PageTitle>
 
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">External Logins</h1>
+    <p class="text-gray-600">Manage your connected social accounts</p>
+</div>
+
 <StatusMessage />
+
 @if (currentLogins?.Count > 0)
 {
-    <h3>Registered Logins</h3>
-    <table class="table">
-        <tbody>
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Connected Accounts</h3>
+        <div class="space-y-3">
             @foreach (var login in currentLogins)
             {
-                <tr>
-                    <td>@login.ProviderDisplayName</td>
-                    <td>
-                        @if (showRemoveButton)
-                        {
-                            <form @formname="@($"remove-login-{login.LoginProvider}")" @onsubmit="OnSubmitAsync" method="post">
-                                <AntiforgeryToken />
-                                <div>
-                                    <input type="hidden" name="@nameof(LoginProvider)" value="@login.LoginProvider" />
-                                    <input type="hidden" name="@nameof(ProviderKey)" value="@login.ProviderKey" />
-                                    <button type="submit" class="btn btn-primary" title="Remove this @login.ProviderDisplayName login from your account">Remove</button>
-                                </div>
-                            </form>
-                        }
-                        else
-                        {
-                            @: &nbsp;
-                        }
-                    </td>
-                </tr>
+                <div class="flex items-center justify-between p-4 border border-gray-300 rounded-lg bg-gray-50">
+                    <span class="text-gray-900 font-medium">@login.ProviderDisplayName</span>
+                    @if (showRemoveButton)
+                    {
+                        <form @formname="@($"remove-login-{login.LoginProvider}")" @onsubmit="OnSubmitAsync" method="post">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="@nameof(LoginProvider)" value="@login.LoginProvider" />
+                            <input type="hidden" name="@nameof(ProviderKey)" value="@login.ProviderKey" />
+                            <button type="submit"
+                                class="px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition font-medium">
+                                Remove
+                            </button>
+                        </form>
+                    }
+                </div>
             }
-        </tbody>
-    </table>
+        </div>
+    </div>
 }
+
 @if (otherLogins?.Count > 0)
 {
-    <h4>Add another service to log in.</h4>
-    <hr />
-    <form class="form-horizontal" action="Account/Manage/LinkExternalLogin" method="post">
-        <AntiforgeryToken />
-        <div>
-            <p>
+    <div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Add Another Account</h3>
+        <form action="Account/Manage/LinkExternalLogin" method="post">
+            <AntiforgeryToken />
+            <div class="flex flex-wrap gap-3">
                 @foreach (var provider in otherLogins)
                 {
-                    <button type="submit" class="btn btn-primary" name="Provider" value="@provider.Name" title="Log in using your @provider.DisplayName account">
-                        @provider.DisplayName
+                    <button type="submit" name="Provider" value="@provider.Name"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-sm">
+                        Connect @provider.DisplayName
                     </button>
                 }
-            </p>
-        </div>
-    </form>
+            </div>
+        </form>
+    </div>
+}
+@* </div>
+</form> *@
 }
 
 @code {
@@ -93,8 +98,8 @@
 
         currentLogins = await UserManager.GetLoginsAsync(user);
         otherLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync())
-            .Where(auth => currentLogins.All(ul => auth.Name != ul.LoginProvider))
-            .ToList();
+        .Where(auth => currentLogins.All(ul => auth.Name != ul.LoginProvider))
+        .ToList();
 
         string? passwordHash = null;
         if (UserStore is IUserPasswordStore<ApplicationUser> userPasswordStore)

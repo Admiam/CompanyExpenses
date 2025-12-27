@@ -2,7 +2,43 @@
 
 <PageTitle>Locked out</PageTitle>
 
-<header>
-    <h1 class="text-danger">Locked out</h1>
-    <p class="text-danger" role="alert">This account has been locked out, please try again later.</p>
-</header>
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+    <div class="w-full max-w-2xl">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden p-8 md:p-12">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+                    <span class="material-symbols-outlined text-red-600" style="font-size: 32px;">lock</span>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Account Locked</h1>
+                <p class="text-gray-600">Your account has been temporarily locked</p>
+            </div>
+
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <div class="flex items-start gap-3">
+                    <span class="material-symbols-outlined text-red-600 mt-0.5" style="font-size: 20px;">warning</span>
+                    <p class="text-sm text-red-800" role="alert">
+                        This account has been locked out due to multiple failed login attempts. Please try again later
+                        or contact support for assistance.
+                    </p>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <a href="Account/Login"
+                    class="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition font-medium shadow-sm">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">arrow_back</span>
+                    <span>Back to Login</span>
+                </a>
+
+                <div class="text-center">
+                    <p class="text-sm text-gray-600">
+                        Need help?
+                        <a href="#" class="text-blue-600 hover:text-blue-800 font-medium transition">
+                            Contact Support
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

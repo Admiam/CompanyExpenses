@@ -10,8 +10,29 @@
 
 <PageTitle>Confirm email</PageTitle>
 
-<h1>Confirm email</h1>
-<StatusMessage Message="@statusMessage" />
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+    <div class="w-full max-w-2xl">
+        <div class="bg-white rounded-2xl text-center shadow-xl overflow-hidden p-8 md:p-12">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                    <span class="material-symbols-outlined text-green-600" style="font-size: 32px;">verified</span>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Email Confirmed</h1>
+                <p class="text-gray-600">Thank you for confirming your email address</p>
+            </div>
+
+            <StatusMessage Message="@statusMessage" />
+
+            <div class="mt-6 items-center justify-center flex text-center">
+                <a href="Account/Login"
+                    class="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition font-medium shadow-sm">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">login</span>
+                    <span>Go to Login</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
     private string? statusMessage;

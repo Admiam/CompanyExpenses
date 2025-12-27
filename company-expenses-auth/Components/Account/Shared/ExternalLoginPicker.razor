@@ -7,29 +7,29 @@
 
 @if (externalLogins.Length == 0)
 {
-    <div class="external-login-empty">
-        <button type="button" class="btn btn-outline btn-google" disabled>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
-                <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" fill="currentColor"/>
-            </svg>
+    <div class="w-full">
+        <button type="button"
+            class="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled>
+            <span class="material-symbols-outlined" style="font-size: 20px;">search</span>
             <span>Continue with Google</span>
         </button>
     </div>
 }
 else
 {
-    <form class="external-login-form" action="Account/PerformExternalLogin" method="post">
+    <form class="w-full" action="Account/PerformExternalLogin" method="post">
         <AntiforgeryToken />
         <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
-        <div class="external-login-buttons">
+        <div class="space-y-3">
             @foreach (var provider in externalLogins)
             {
-                <button type="submit" class="btn btn-outline btn-external" name="provider" value="@provider.Name" title="Log in using your @provider.DisplayName account">
+                <button type="submit"
+                    class="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition shadow-sm"
+                    name="provider" value="@provider.Name" title="Log in using your @provider.DisplayName account">
                     @if (provider.Name == "Google")
                     {
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
-                            <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" fill="currentColor"/>
-                        </svg>
+                        <span class="material-symbols-outlined" style="font-size: 20px;">search</span>
                     }
                     <span>Continue with @provider.DisplayName</span>
                 </button>

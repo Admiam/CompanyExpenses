@@ -1,7 +1,135 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
 
-<PageTitle>Home</PageTitle>
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
 
-<h1>Hello, world!</h1>
+<PageTitle>Home - Company Expenses</PageTitle>
 
-Welcome to your new app.
+<div class="relative w-full">
+    <div style="position: absolute; top: 1rem; right: 2.5rem; z-index: 50; background-color: transparent;">
+        <AuthorizeView>
+            <Authorized>
+                <div class="relative inline-block text-left">
+                    <button type="button" onclick="document.getElementById('user-menu').classList.toggle('hidden')"
+                        class="inline-flex items-center justify-center w-10 h-10rounded-full shadow-lg hover:shadow-xl transition">
+                        <span class="material-symbols-outlined text-blue-600" style="font-size: 24px;">
+                            account_circle
+                        </span>
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div id="user-menu"
+                        class="hidden absolute mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5"
+                        style="right: 0;">
+                        <div class="py-1">
+                            <div class="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
+                                <p class="font-medium">@context.User.Identity?.Name</p>
+                                <p class="text-xs text-gray-500">
+                                    @context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</p>
+                            </div>
+                            <a href="/Account/Manage"
+                                class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">
+                                    settings
+                                </span>
+                                <span>Account Settings</span>
+                            </a>
+                            <form action="Account/Logout" method="post" class="m-0">
+                                <button type="submit"
+                                    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition text-left">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">
+                                        logout
+                                    </span>
+                                    <span>Logout</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <a href="Account/Login"
+                    class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:shadow-xl transition border border-gray-200 text-sm font-medium text-gray-700">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">
+                        login
+                    </span>
+                    <span>Sign In</span>
+                </a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+        <div class="w-full max-w-6xl">
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div class="grid md:grid-cols-2 gap-0">
+                    <!-- Content Section -->
+                    <div class="p-8 md:p-12" style="display: flex; flex-direction: column; justify-content: center;">
+                        <div class="text-center mb-6">
+                            <div
+                                class="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-4">
+                                <span class="material-symbols-outlined text-blue-600" style="font-size: 48px;">
+                                    receipt_long
+                                </span>
+                            </div>
+                            <h1 class="text-3xl font-bold text-gray-900 mb-2">Welcome to Company Expenses</h1>
+                            <p class="text-gray-600">
+                                You're all set! Ready to manage your expenses efficiently
+                            </p>
+                        </div>
+
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                            <div class="flex items-start gap-3">
+                                <span class="material-symbols-outlined text-blue-600 mt-0.5" style="font-size: 20px;">
+                                    info
+                                </span>
+                                <p class="text-sm text-blue-800">
+                                    Access your dashboard to track expenses, view analytics, and manage your company's
+                                    financial workflow in one place.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4 flex flex-col items-center" style="flex-direction: column">
+                            <a href="http://localhost:5173/dashboard"
+                                class="bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition font-medium shadow-sm"
+                                style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">
+                                    dashboard
+                                </span>
+                                <span>Go to Dashboard</span>
+                            </a>
+
+                            <div class="text-center">
+                                <p class="text-sm text-gray-600">
+                                    Need help getting started?
+                                    <a href="#" class="text-blue-600 hover:text-blue-800 font-medium transition">
+                                        View Guide
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Image Section -->
+                    <div class="hidden md:block relative bg-gradient-to-br from-blue-600 to-purple-700">
+                        <div class="absolute inset-0 bg-black bg-opacity-20"></div>
+                        <img src="https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg"
+                            alt="Welcome background" class="w-full h-full object-cover mix-blend-overlay" />
+                        <div class="absolute inset-0 flex items-center justify-center p-12">
+                            <div class="text-white text-center">
+                                <span class="material-symbols-outlined mb-4" style="font-size: 64px;">
+                                    analytics
+                                </span>
+                                <h2 class="text-4xl font-bold mb-4">Manage Your Expenses</h2>
+                                <p class="text-lg opacity-90">
+                                    Track, organize, and optimize your company's financial workflow
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -11,9 +11,29 @@
 
 <PageTitle>Confirm email change</PageTitle>
 
-<h1>Confirm email change</h1>
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+    <div class="w-full max-w-2xl">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden p-8 md:p-12">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                    <span class="material-symbols-outlined text-green-600" style="font-size: 32px;">check_circle</span>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Email Changed</h1>
+                <p class="text-gray-600">Your email address has been updated successfully</p>
+            </div>
 
-<StatusMessage Message="@message" />
+            <StatusMessage Message="@message" />
+
+            <div class="mt-6 text-center">
+                <a href="Account/Manage"
+                    class="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition font-medium shadow-sm">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">arrow_back</span>
+                    <span>Back to Account Settings</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
     private string? message;
@@ -35,7 +55,7 @@
         if (UserId is null || Email is null || Code is null)
         {
             RedirectManager.RedirectToWithStatus(
-                "Account/Login", "Error: Invalid email change confirmation link.", HttpContext);
+            "Account/Login", "Error: Invalid email change confirmation link.", HttpContext);
             return;
         }
 

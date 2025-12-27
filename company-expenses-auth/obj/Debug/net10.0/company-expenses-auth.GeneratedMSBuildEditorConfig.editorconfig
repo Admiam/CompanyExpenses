@@ -66,6 +66,14 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1BhZ2VzL0xvY2tvdXQucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/Components/Account/Pages/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1BhZ2VzL0xvZ2luLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/Components/Account/Pages/LoginSuccess.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1BhZ2VzL0xvZ2luU3VjY2Vzcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/Components/Account/Pages/LoginWith2fa.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1BhZ2VzL0xvZ2luV2l0aDJmYS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
@@ -158,6 +166,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1BhZ2VzL19JbXBvcnRzLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/Components/Account/Shared/ExternalLoginPicker.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1NoYXJlZC9FeHRlcm5hbExvZ2luUGlja2VyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
 [/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/Components/Account/Shared/ManageLayout.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1NoYXJlZC9NYW5hZ2VMYXlvdXQucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
@@ -217,14 +229,6 @@ build_metadata.AdditionalFiles.CssScope =
 [/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/Components/_Imports.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9fSW1wb3J0cy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
-
-[/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/Components/Account/Pages/Login.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1BhZ2VzL0xvZ2luLnJhem9y
-build_metadata.AdditionalFiles.CssScope = b-7j7k54pxid
-
-[/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/Components/Account/Shared/ExternalLoginPicker.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BY2NvdW50L1NoYXJlZC9FeHRlcm5hbExvZ2luUGlja2VyLnJhem9y
-build_metadata.AdditionalFiles.CssScope = b-0mefm8gaqf
 
 [/Users/mikamac/Documents/School/ING/PIAE/CompanyExpenses/company-expenses-auth/Components/Layout/MainLayout.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9MYXlvdXQvTWFpbkxheW91dC5yYXpvcg==

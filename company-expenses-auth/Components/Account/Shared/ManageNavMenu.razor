@@ -3,32 +3,87 @@
 
 @inject SignInManager<ApplicationUser> SignInManager
 
-<ul class="nav nav-pills flex-column">
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage" Match="NavLinkMatch.All">Profile</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/Email">Email</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/ChangePassword">Password</NavLink>
-    </li>
-    @if (hasExternalLogins)
-    {
-        <li class="nav-item">
-            <NavLink class="nav-link" href="Account/Manage/ExternalLogins">External logins</NavLink>
-        </li>
+<style>
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.625rem 0.75rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+        transition: all 0.2s;
+        text-decoration: none;
     }
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/TwoFactorAuthentication">Two-factor authentication</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/Passkeys">Passkeys</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/PersonalData">Personal data</NavLink>
-    </li>
-</ul>
+
+    .nav-item:hover {
+        background-color: #eff6ff;
+        color: #2563eb;
+    }
+
+    .nav-item.active {
+        background-color: #eff6ff;
+        color: #2563eb;
+        font-weight: 600;
+    }
+</style>
+
+<nav class="px-3">
+    <ul style="display: flex; flex-direction: column; gap: 0.25rem;">
+        <li>
+            <NavLink class="nav-item" ActiveClass="active" href="Account/Manage" Match="NavLinkMatch.All">
+                <span class="material-symbols-outlined" style="font-size: 20px;">
+                    person
+                </span>
+                <span>Profile</span>
+            </NavLink>
+        </li>
+        <li>
+            <NavLink class="nav-item" ActiveClass="active" href="Account/Manage/Email">
+                <span class="material-symbols-outlined" style="font-size: 20px;">
+                    email
+                </span>
+                <span>Email</span>
+            </NavLink>
+        </li>
+        <li>
+            <NavLink class="nav-item" ActiveClass="active" href="Account/Manage/ChangePassword">
+                <span class="material-symbols-outlined" style="font-size: 20px;">
+                    lock
+                </span>
+                <span>Password</span>
+            </NavLink>
+        </li>
+        @if (hasExternalLogins)
+        {
+            <li>
+                <NavLink class="nav-item" ActiveClass="active" href="Account/Manage/ExternalLogins">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">
+                        link
+                    </span>
+                    <span>External logins</span>
+                </NavLink>
+            </li>
+        }
+        <li>
+            <NavLink class="nav-item" ActiveClass="active" href="Account/Manage/Passkeys">
+                <span class="material-symbols-outlined" style="font-size: 20px;">
+                    key
+                </span>
+                <span>Passkeys</span>
+            </NavLink>
+        </li>
+        <li>
+            <NavLink class="nav-item" ActiveClass="active" href="Account/Manage/PersonalData">
+                <span class="material-symbols-outlined" style="font-size: 20px;">
+                    folder_shared
+                </span>
+                <span>Personal data</span>
+            </NavLink>
+        </li>
+    </ul>
+</nav>
 
 @code {
     private bool hasExternalLogins;

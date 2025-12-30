@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "header": "Office Chairs",
+    "type": "Office Equipment",
+    "status": "In Process",
+    "target": "15,000 Kč",
+    "limit": "20,000 Kč",
+    "reviewer": "Eddie Lake"
+  },
+  {
+    "id": 2,
+    "header": "Coffee & Snacks",
+    "type": "Office Supplies",
+    "status": "Done",
+    "target": "3,500 Kč",
+    "limit": "4,000 Kč",
+    "reviewer": "Maria Garcia"
+  },
+  {
+    "id": 3,
+    "header": "Team Building Bowling Night",
+    "type": "Recreation",
+    "status": "Approved",
+    "target": "12,000 Kč",
+    "limit": "15,000 Kč",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 4,
+    "header": "Conference Tickets",
+    "type": "Education",
+    "status": "In Process",
+    "target": "8,000 Kč",
+    "limit": "10,000 Kč",
+    "reviewer": "Jamik Tashpulatov"
+  },
+  {
+    "id": 5,
+    "header": "Office Plants",
+    "type": "Office Decor",
+    "status": "Done",
+    "target": "2,000 Kč",
+    "limit": "2,500 Kč",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 6,
+    "header": "Christmas Party",
+    "type": "Recreation",
+    "status": "Planned",
+    "target": "20,000 Kč",
+    "limit": "25,000 Kč",
+    "reviewer": "Leila Ahmadi"
+  },
+  {
+    "id": 7,
+    "header": "Laptop Upgrades",
+    "type": "Technical Equipment",
+    "status": "In Process",
+    "target": "50,000 Kč",
+    "limit": "55,000 Kč",
+    "reviewer": "Raj Patel"
+  },
+  {
+    "id": 8,
+    "header": "Online Course Licenses",
+    "type": "Education",
+    "status": "Done",
+    "target": "5,000 Kč",
+    "limit": "6,000 Kč",
+    "reviewer": "Sophia Martinez"
+  },
+  {
+    "id": 9,
+    "header": "Projector",
+    "type": "Office Equipment",
+    "status": "Rejected",
+    "target": "12,000 Kč",
+    "limit": "15,000 Kč",
+    "reviewer": "Carlos Rodriguez"
+  },
+  {
+    "id": 10,
+    "header": "Team Lunch",
+    "type": "Recreation",
+    "status": "Approved",
+    "target": "4,000 Kč",
+    "limit": "5,000 Kč",
+    "reviewer": "Emily Whalen"
+  },
+  {
+    "id": 11,
+    "header": "New Desks",
+    "type": "Office Equipment",
+    "status": "In Process",
+    "target": "18,000 Kč",
+    "limit": "20,000 Kč",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 12,
+    "header": "Printer Ink",
+    "type": "Office Supplies",
+    "status": "Done",
+    "target": "2,500 Kč",
+    "limit": "3,000 Kč",
+    "reviewer": "Priya Singh"
+  },
+  {
+    "id": 13,
+    "header": "Hackathon Sponsorship",
+    "type": "Recreation",
+    "status": "Rejected",
+    "target": "10,000 Kč",
+    "limit": "12,000 Kč",
+    "reviewer": "Michael Chen"
+  },
+  {
+    "id": 14,
+    "header": "Books for Training",
+    "type": "Education",
+    "status": "Done",
+    "target": "3,200 Kč",
+    "limit": "4,000 Kč",
+    "reviewer": "Nina Patel"
+  },
+  {
+    "id": 15,
+    "header": "VR Headsets",
+    "type": "Technical Equipment",
+    "status": "In Process",
+    "target": "45,000 Kč",
+    "limit": "50,000 Kč",
+    "reviewer": "David Kim"
+  },
+  {
+    "id": 16,
+    "header": "Company Outing",
+    "type": "Recreation",
+    "status": "Rejected",
+    "target": "15,000 Kč",
+    "limit": "18,000 Kč",
+    "reviewer": "Assign reviewer"
+  },
+  {
+    "id": 17,
+    "header": "Training Seminar",
+    "type": "Education",
+    "status": "In Process",
+    "target": "7,500 Kč",
+    "limit": "9,000 Kč",
+    "reviewer": "Sophia Martinez"
+  },
+  {
+    "id": 18,
+    "header": "Monitors",
+    "type": "Technical Equipment",
+    "status": "Approved",
+    "target": "22,000 Kč",
+    "limit": "25,000 Kč",
+    "reviewer": "Raj Patel"
+  },
+  {
+    "id": 19,
+    "header": "Catering",
+    "type": "Recreation",
+    "status": "Pending",
+    "target": "6,000 Kč",
+    "limit": "7,000 Kč",
+    "reviewer": "Leila Ahmadi"
+  },
+  {
+    "id": 20,
+    "header": "Software Licenses",
+    "type": "Technical Equipment",
+    "status": "Approved",
+    "target": "12,000 Kč",
+    "limit": "15,000 Kč",
+    "reviewer": "Eddie Lake"
+  }
+]

@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+bin/
+obj/
+dist/
+build/
+out/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug & Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Shared keys (pokud obsahují citlivé údaje)
+# shared-keys/
+
+# Cache
+*.cache
+.cache/
+
+# Temp files
+*.tmp
+*.temp
+
+# ASP.NET
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Browser debug profiles
+.vscode/brave-debug-profile/
+.vscode/brave-debug-profile-auth/
+
+# NPM
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

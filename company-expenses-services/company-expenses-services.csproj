@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CompanyExpenses.Services</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\company-expenses-database\company-expenses-database.csproj" />
+    <ProjectReference Include="..\company-expenses-models\company-expenses-models.csproj" />
+  </ItemGroup>
+
+</Project>

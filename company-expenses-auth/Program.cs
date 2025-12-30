@@ -4,8 +4,17 @@ using company_expenses_auth.Data;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Data Protection - sdílené klíče s API serverem
+var keysPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "shared-keys");
+Directory.CreateDirectory(keysPath);
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+    .SetApplicationName("CompanyExpenses"); // MUSÍ být stejný jako API server
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -37,6 +46,21 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
+// Konfigurace cookie pro sdílení mezi Auth serverem a API
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.Name = ".AspNetCore.Identity.Application";
+    options.Cookie.Domain = "localhost"; // Stejná doména jako API
+    options.Cookie.Path = "/";
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.None; // Povolí cross-origin
+    options.Cookie.HttpOnly = true;
+    options.LoginPath = "/Account/Login";
+    options.LogoutPath = "/Account/Logout";
+    options.ExpireTimeSpan = TimeSpan.FromHours(24);
+    options.SlidingExpiration = true;
+});
+
 // Use SmtpEmailSender for production, IdentityNoOpEmailSender for development without email
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, SmtpEmailSender>();
 
@@ -64,5 +88,12 @@ app.MapRazorComponents<App>()
 
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
+
+// Seed roles
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    await DbInitializer.SeedRoles(roleManager);
+}
 
 app.Run();

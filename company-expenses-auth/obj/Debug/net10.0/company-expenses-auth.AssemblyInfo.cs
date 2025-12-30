@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("company-expenses-auth")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+33a618023e7af14617278cc0cf9b1cb13d93ff43")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6a2e4b6ba9c758bdb3fee41c7ddf7547395acf6a")]
 [assembly: System.Reflection.AssemblyProductAttribute("company-expenses-auth")]
 [assembly: System.Reflection.AssemblyTitleAttribute("company-expenses-auth")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

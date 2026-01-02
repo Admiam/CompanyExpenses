@@ -180,7 +180,18 @@
         if (result.Succeeded)
         {
             Logger.LogInformation("User logged in.");
-            RedirectManager.RedirectTo("/");
+            
+            // Check if ReturnUrl is an external URL (starts with http)
+            if (!string.IsNullOrEmpty(ReturnUrl) && (ReturnUrl.StartsWith("http://") || ReturnUrl.StartsWith("https://")))
+            {
+                // External redirect to React app
+                NavigationManager.NavigateTo(ReturnUrl, forceLoad: true);
+            }
+            else
+            {
+                // Internal redirect within Blazor app
+                RedirectManager.RedirectTo(ReturnUrl);
+            }
         }
         else if (result.RequiresTwoFactor)
         {

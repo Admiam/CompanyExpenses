@@ -4,7 +4,11 @@ import "./index.css";
 import App from "./App.tsx";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Dashboard from "@/pages/dashboard/Dashboard.tsx";
-import LoginRedirect from "@/app/auth/LoginRedirect.tsx";
+import ExpensesPage from "@/pages/expenses/ExpensesPage.tsx";
+import WorkplacesPage from "@/pages/workplaces/WorkplacesPage.tsx";
+import UsersPage from "@/pages/users/UsersPage.tsx";
+import CategoriesPage from "@/pages/categories/CategoriesPage.tsx";
+import LoginRedirect from "@/pages/auth/LoginRedirect.tsx";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute.tsx";
@@ -40,6 +44,38 @@ createRoot(document.getElementById("root")!).render(
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/expenses"
+              element={
+                <ProtectedRoute>
+                  <ExpensesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workplaces"
+              element={
+                <ProtectedRoute>
+                  <WorkplacesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute>
+                  <UsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/categories"
+              element={
+                <ProtectedRoute>
+                  <CategoriesPage />
                 </ProtectedRoute>
               }
             />

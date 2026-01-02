@@ -89,10 +89,17 @@ app.MapRazorComponents<App>()
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
 
-// Seed roles
+// Apply migrations and seed roles
 using (var scope = app.Services.CreateScope())
 {
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    var services = scope.ServiceProvider;
+    var context = services.GetRequiredService<ApplicationDbContext>();
+
+    // Apply pending migrations
+    await context.Database.MigrateAsync();
+
+    // Seed roles
+    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
     await DbInitializer.SeedRoles(roleManager);
 }
 

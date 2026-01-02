@@ -2,11 +2,11 @@ import * as React from "react"
 import {
   IconDashboard,
   IconUsers,
-  IconReportAnalytics,
   IconSettings,
   IconCreditCard,
   IconBuildingSkyscraper,
   IconHelp,
+  IconCategory,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -31,7 +31,7 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "/",
+      url: "/dashboard",
       icon: IconDashboard,
     },
     {
@@ -40,19 +40,19 @@ const data = {
       icon: IconCreditCard,
     },
     {
-      title: "Týmy & Pracoviště",
-      url: "/teams",
+      title: "Pracoviště",
+      url: "/workplaces",
       icon: IconBuildingSkyscraper,
-    },
-    {
-      title: "Reporty",
-      url: "/reports",
-      icon: IconReportAnalytics,
     },
     {
       title: "Uživatelé",
       url: "/users",
       icon: IconUsers,
+    },
+    {
+      title: "Kategorie",
+      url: "/categories",
+      icon: IconCategory,
     },
   ],
   navSecondary: [

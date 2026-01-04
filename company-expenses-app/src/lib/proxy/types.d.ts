@@ -192,3 +192,9 @@ export interface CreateExpenseCategoryRequest {
 }
 
 export type UpdateExpenseCategoryRequest = Partial<CreateExpenseCategoryRequest>;
+
+// Role types
+export interface Role {
+  id: string;
+  name: string;
+}

@@ -30,6 +30,16 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+// Configure Auth Database Context for roles
+var authConnectionString = builder.Configuration.GetConnectionString("AuthConnection")
+    ?? throw new InvalidOperationException("Connection string 'AuthConnection' not found.");
+
+builder.Services.AddDbContext<CompanyExpenses.Api.Data.AuthDbContext>(options =>
+    options.UseSqlServer(authConnectionString));
+
+// Register HttpClient
+builder.Services.AddHttpClient();
+
 // Configure Authentication
 // API server bude sdílet cookie authentication s Auth serverem
 // builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -104,8 +114,8 @@ builder.Services.AddCors(options =>
     });
 });
 
-// TODO: Register your services here
-// builder.Services.AddScoped<IExpenseService, ExpenseService>();
+// Register services
+builder.Services.AddScoped<CompanyExpenses.Api.Services.IEmailService, CompanyExpenses.Api.Services.EmailService>();
 
 var app = builder.Build();
 

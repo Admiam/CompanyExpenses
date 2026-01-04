@@ -1,5 +1,6 @@
 using CompanyExpenses.Database.Data;
 using CompanyExpenses.Models.Entities;
+using CompanyExpenses.Api.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,19 +23,41 @@ public class WorkplacesController : ControllerBase
     /// Získá seznam všech pracovišť
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Workplace>>> GetWorkplaces()
+    public async Task<ActionResult<IEnumerable<WorkplaceDto>>> GetWorkplaces()
     {
-        return await _context.Workplaces
+        var workplaces = await _context.Workplaces
             .Where(w => w.IsActive)
             .Include(w => w.Members)
             .ToListAsync();
+
+        var workplaceDtos = workplaces.Select(w => new WorkplaceDto
+        {
+            Id = w.Id,
+            Name = w.Name,
+            Code = w.Code,
+            IsActive = w.IsActive,
+            CreatedAt = w.CreatedAt,
+            CreatedBy = w.CreatedBy,
+            Members = w.Members.Select(m => new WorkplaceMemberDto
+            {
+                Id = m.Id,
+                WorkplaceId = m.WorkplaceId,
+                UserId = m.UserId,
+                PositionName = m.PositionName,
+                IsManager = m.IsManager,
+                CreatedAt = m.CreatedAt,
+                CreatedBy = m.CreatedBy
+            }).ToList()
+        }).ToList();
+
+        return Ok(workplaceDtos);
     }
 
     /// <summary>
     /// Získá konkrétní pracoviště podle ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<Workplace>> GetWorkplace(Guid id)
+    public async Task<ActionResult<WorkplaceDetailDto>> GetWorkplace(Guid id)
     {
         var workplace = await _context.Workplaces
             .Include(w => w.Members)
@@ -46,7 +69,40 @@ public class WorkplacesController : ControllerBase
             return NotFound();
         }
 
-        return workplace;
+        var workplaceDto = new WorkplaceDetailDto
+        {
+            Id = workplace.Id,
+            Name = workplace.Name,
+            Code = workplace.Code,
+            IsActive = workplace.IsActive,
+            CreatedAt = workplace.CreatedAt,
+            CreatedBy = workplace.CreatedBy,
+            Members = workplace.Members.Select(m => new WorkplaceMemberDto
+            {
+                Id = m.Id,
+                WorkplaceId = m.WorkplaceId,
+                UserId = m.UserId,
+                PositionName = m.PositionName,
+                IsManager = m.IsManager,
+                CreatedAt = m.CreatedAt,
+                CreatedBy = m.CreatedBy
+            }).ToList(),
+            Limits = workplace.Limits.Select(l => new WorkplaceLimitDto
+            {
+                Id = l.Id,
+                WorkplaceId = l.WorkplaceId,
+                PeriodFrom = l.PeriodFrom,
+                PeriodTo = l.PeriodTo,
+                LimitAmount = l.LimitAmount,
+                Currency = l.Currency,
+                CategoryId = l.CategoryId,
+                IsActive = l.IsActive,
+                CreatedAt = l.CreatedAt,
+                CreatedBy = l.CreatedBy
+            }).ToList()
+        };
+
+        return Ok(workplaceDto);
     }
 
     /// <summary>

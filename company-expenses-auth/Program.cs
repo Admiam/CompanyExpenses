@@ -64,6 +64,9 @@ builder.Services.ConfigureApplicationCookie(options =>
 // Use SmtpEmailSender for production, IdentityNoOpEmailSender for development without email
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, SmtpEmailSender>();
 
+// Add HttpClient for API calls
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

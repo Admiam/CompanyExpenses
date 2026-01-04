@@ -9,6 +9,7 @@ import WorkplacesPage from "@/pages/workplaces/WorkplacesPage.tsx";
 import UsersPage from "@/pages/users/UsersPage.tsx";
 import CategoriesPage from "@/pages/categories/CategoriesPage.tsx";
 import LoginRedirect from "@/pages/auth/LoginRedirect.tsx";
+import RegisterPage from "@/pages/RegisterPage.tsx";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute.tsx";
@@ -34,6 +35,14 @@ createRoot(document.getElementById("root")!).render(
               element={
                 <PublicRoute>
                   <LoginRedirect />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <PublicRoute>
+                  <RegisterPage />
                 </PublicRoute>
               }
             />

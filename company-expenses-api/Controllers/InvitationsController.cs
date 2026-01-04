@@ -1,6 +1,8 @@
 using CompanyExpenses.Database.Data;
 using CompanyExpenses.Models.Entities;
 using CompanyExpenses.Models.Enums;
+using CompanyExpenses.Api.Services;
+using CompanyExpenses.Api.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
@@ -13,11 +15,13 @@ public class InvitationsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly ILogger<InvitationsController> _logger;
+    private readonly IEmailService _emailService;
 
-    public InvitationsController(AppDbContext context, ILogger<InvitationsController> logger)
+    public InvitationsController(AppDbContext context, ILogger<InvitationsController> logger, IEmailService emailService)
     {
         _context = context;
         _logger = logger;
+        _emailService = emailService;
     }
 
     /// <summary>
@@ -44,7 +48,7 @@ public class InvitationsController : ControllerBase
             Status = i.Status,
             CreatedAt = i.CreatedAt,
             CreatedBy = i.CreatedBy,
-            Workplace = i.Workplace != null ? new WorkplaceDto
+            Workplace = i.Workplace != null ? new InvitationWorkplaceDto
             {
                 Id = i.Workplace.Id,
                 Name = i.Workplace.Name,
@@ -82,7 +86,7 @@ public class InvitationsController : ControllerBase
             Status = invitation.Status,
             CreatedAt = invitation.CreatedAt,
             CreatedBy = invitation.CreatedBy,
-            Workplace = invitation.Workplace != null ? new WorkplaceDto
+            Workplace = invitation.Workplace != null ? new InvitationWorkplaceDto
             {
                 Id = invitation.Workplace.Id,
                 Name = invitation.Workplace.Name,
@@ -132,7 +136,7 @@ public class InvitationsController : ControllerBase
             Status = invitation.Status,
             CreatedAt = invitation.CreatedAt,
             CreatedBy = invitation.CreatedBy,
-            Workplace = invitation.Workplace != null ? new WorkplaceDto
+            Workplace = invitation.Workplace != null ? new InvitationWorkplaceDto
             {
                 Id = invitation.Workplace.Id,
                 Name = invitation.Workplace.Name,
@@ -174,7 +178,7 @@ public class InvitationsController : ControllerBase
             Email = dto.Email,
             InvitedRoleId = dto.InvitedRoleId,
             WorkplaceId = dto.WorkplaceId,
-            Token = GenerateSecureToken(),
+            Token = dto.Token ?? GenerateSecureToken(),
             ExpiresAt = DateTime.UtcNow.AddDays(7), // Valid for 7 days
             Status = InvitationStatus.Pending,
             InvitedByUserId = "test-user", // TODO: Získat z authentication
@@ -185,8 +189,17 @@ public class InvitationsController : ControllerBase
         _context.Invitations.Add(invitation);
         await _context.SaveChangesAsync();
 
-        // TODO: Send email with registration link
-        _logger.LogInformation("Created invitation for {Email}, token: {Token}", dto.Email, invitation.Token);
+        // Send invitation email
+        try
+        {
+            await _emailService.SendInvitationEmailAsync(invitation.Email, invitation.Token, workplace?.Name);
+            _logger.LogInformation("Created invitation for {Email}, token: {Token}, email sent", dto.Email, invitation.Token);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send invitation email to {Email}", dto.Email);
+            // Continue anyway - invitation is created
+        }
 
         var invitationDto = new InvitationDto
         {
@@ -201,7 +214,7 @@ public class InvitationsController : ControllerBase
             Status = invitation.Status,
             CreatedAt = invitation.CreatedAt,
             CreatedBy = invitation.CreatedBy,
-            Workplace = workplace != null ? new WorkplaceDto
+            Workplace = workplace != null ? new InvitationWorkplaceDto
             {
                 Id = workplace.Id,
                 Name = workplace.Name,
@@ -310,8 +323,17 @@ public class InvitationsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        // TODO: Send email
-        _logger.LogInformation("Resent invitation for {Email}, new token: {Token}", invitation.Email, invitation.Token);
+        // Send invitation email
+        try
+        {
+            await _emailService.SendInvitationEmailAsync(invitation.Email, invitation.Token, invitation.Workplace?.Name);
+            _logger.LogInformation("Resent invitation for {Email}, new token: {Token}, email sent", invitation.Email, invitation.Token);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send invitation email to {Email}", invitation.Email);
+            // Continue anyway - invitation is updated
+        }
 
         return new InvitationDto
         {
@@ -326,7 +348,7 @@ public class InvitationsController : ControllerBase
             Status = invitation.Status,
             CreatedAt = invitation.CreatedAt,
             CreatedBy = invitation.CreatedBy,
-            Workplace = invitation.Workplace != null ? new WorkplaceDto
+            Workplace = invitation.Workplace != null ? new InvitationWorkplaceDto
             {
                 Id = invitation.Workplace.Id,
                 Name = invitation.Workplace.Name,
@@ -359,10 +381,10 @@ public class InvitationDto
     public InvitationStatus Status { get; set; }
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
-    public WorkplaceDto? Workplace { get; set; }
+    public InvitationWorkplaceDto? Workplace { get; set; }
 }
 
-public class WorkplaceDto
+public class InvitationWorkplaceDto
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -374,7 +396,9 @@ public class CreateInvitationDto
 {
     public string Email { get; set; } = string.Empty;
     public string? InvitedRoleId { get; set; }
+    public string? Token { get; set; }
     public Guid? WorkplaceId { get; set; }
+
 }
 
 public class AcceptInvitationDto

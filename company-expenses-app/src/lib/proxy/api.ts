@@ -27,6 +27,7 @@ import type {
   WorkplaceLimit,
   CreateWorkplaceLimitRequest,
   UpdateWorkplaceLimitRequest,
+  Role,
 } from "./types";
 
 export const authApi = {
@@ -228,6 +229,13 @@ export const categoriesApi = {
   },
 };
 
+/***** Roles *****/
+export const rolesApi = {
+  async getRoles(): Promise<Role[]> {
+    return apiProxy.get<Role[]>("/api/roles");
+  },
+};
+
 export const api = {
   auth: authApi,
   expenses: expensesApi,
@@ -236,6 +244,7 @@ export const api = {
   workplaceLimits: workplaceLimitsApi,
   invitations: invitationsApi,
   categories: categoriesApi,
+  roles: rolesApi,
 };
 
 export default api;

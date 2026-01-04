@@ -17,6 +17,7 @@
 @inject IdentityRedirectManager RedirectManager
 @inject IConfiguration Configuration
 @inject HttpClient HttpClient
+@inject RoleManager<IdentityRole> RoleManager
 
 <PageTitle>Register</PageTitle>
 
@@ -186,8 +187,7 @@ else
     [SupplyParameterFromQuery]
     private string? Token { get; set; }
 
-    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error =>
-    error.Description))}";
+    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
 
     private string GetEmailInputClass()
     {
@@ -270,20 +270,31 @@ else
         Logger.LogInformation("User created a new account with password.");
 
         var userId = await UserManager.GetUserIdAsync(user);
-        @* Assign role if provided in invitation *@
+        
+        // Assign role if provided in invitation
         if (!string.IsNullOrEmpty(invitedRoleId))
         {
             try
             {
-                var roleResult = await UserManager.AddToRoleAsync(user, invitedRoleId);
-                if (roleResult.Succeeded)
+                // Find the role by ID first
+                var role = await RoleManager.FindByIdAsync(invitedRoleId);
+                if (role != null && !string.IsNullOrEmpty(role.Name))
                 {
-                    Logger.LogInformation("User {UserId} assigned to role {RoleId}", userId, invitedRoleId);
+                    var roleResult = await UserManager.AddToRoleAsync(user, role.Name);
+                    if (roleResult.Succeeded)
+                    {
+                        Logger.LogInformation("User {UserId} assigned to role {RoleName} (ID: {RoleId})", 
+                            userId, role.Name, invitedRoleId);
+                    }
+                    else
+                    {
+                        Logger.LogWarning("Failed to assign role {RoleName} to user {UserId}: {Errors}",
+                            role.Name, userId, string.Join(", ", roleResult.Errors.Select(e => e.Description)));
+                    }
                 }
                 else
                 {
-                    Logger.LogWarning("Failed to assign role {RoleId} to user {UserId}: {Errors}",
-                    invitedRoleId, userId, string.Join(", ", roleResult.Errors.Select(e => e.Description)));
+                    Logger.LogWarning("Role with ID {RoleId} not found", invitedRoleId);
                 }
             }
             catch (Exception ex)

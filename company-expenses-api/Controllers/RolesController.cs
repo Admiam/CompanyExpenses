@@ -28,7 +28,7 @@ public class RolesController : ControllerBase
             var roles = await _authContext.Roles
                 .Select(r => new RoleDto
                 {
-                    Id = r.Name ?? string.Empty,
+                    Id = r.Id,
                     Name = r.Name ?? string.Empty
                 })
                 .ToListAsync();

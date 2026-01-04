@@ -13,4 +13,15 @@ public class AuthDbContext : DbContext
     }
 
     public DbSet<IdentityRole> Roles { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Map to the correct Identity table name
+        modelBuilder.Entity<IdentityRole>(entity =>
+        {
+            entity.ToTable("AspNetRoles");
+        });
+    }
 }

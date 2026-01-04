@@ -3,6 +3,7 @@ using CompanyExpenses.Models.Entities;
 using CompanyExpenses.Models.Enums;
 using CompanyExpenses.Api.DTOs;
 using CompanyExpenses.Api.Services;
+using CompanyExpenses.Api.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -14,15 +15,18 @@ namespace CompanyExpenses.Api.Controllers;
 public class ExpensesController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly AuthDbContext _authContext;
     private readonly ILogger<ExpensesController> _logger;
     private readonly IImageCompressionService _imageCompressionService;
 
     public ExpensesController(
         AppDbContext context,
+        AuthDbContext authContext,
         ILogger<ExpensesController> logger,
         IImageCompressionService imageCompressionService)
     {
         _context = context;
+        _authContext = authContext;
         _logger = logger;
         _imageCompressionService = imageCompressionService;
     }
@@ -85,12 +89,11 @@ public class ExpensesController : ControllerBase
     /// Získá konkrétní výdaj podle ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<Expense>> GetExpense(Guid id)
+    public async Task<ActionResult> GetExpense(Guid id)
     {
         var expense = await _context.Expenses
             .Include(e => e.Category)
             .Include(e => e.Workplace)
-            .Include(e => e.Attachments)
             .Include(e => e.Approvals)
             .FirstOrDefaultAsync(e => e.Id == id);
 
@@ -99,7 +102,49 @@ public class ExpensesController : ControllerBase
             return NotFound();
         }
 
-        return expense;
+        // Get user emails from auth database
+        var userIds = expense.Approvals.Select(a => a.ActorUserId).Distinct().ToList();
+        if (expense.LastDecisionBy != null)
+        {
+            userIds.Add(expense.LastDecisionBy);
+        }
+
+        var users = await _authContext.NetUsers
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? u.Id);
+
+        // Map to DTO with approvals
+        var result = new
+        {
+            id = expense.Id,
+            description = expense.Description,
+            amount = expense.Amount,
+            currency = expense.Currency,
+            expenseDate = expense.ExpenseDate,
+            status = expense.Status.ToString(),
+            employeeUserId = expense.EmployeeUserId,
+            workplaceId = expense.WorkplaceId,
+            categoryId = expense.CategoryId,
+            workplace = expense.Workplace != null ? new { id = expense.Workplace.Id, name = expense.Workplace.Name } : null,
+            category = expense.Category != null ? new { id = expense.Category.Id, name = expense.Category.Name } : null,
+            submittedAt = expense.SubmittedAt,
+            createdAt = expense.CreatedAt,
+            lastDecisionAt = expense.LastDecisionAt,
+            lastDecisionBy = expense.LastDecisionBy != null && users.ContainsKey(expense.LastDecisionBy)
+                ? users[expense.LastDecisionBy]
+                : expense.LastDecisionBy,
+            rejectionNote = expense.RejectionNote,
+            approvals = expense.Approvals.Select(a => new
+            {
+                id = a.Id,
+                action = a.Action.ToString(),
+                actorEmail = users.ContainsKey(a.ActorUserId) ? users[a.ActorUserId] : a.ActorUserId,
+                note = a.Note,
+                createdAt = a.CreatedAt
+            }).OrderByDescending(a => a.createdAt).ToList()
+        };
+
+        return Ok(result);
     }
 
     /// <summary>
@@ -197,70 +242,107 @@ public class ExpensesController : ControllerBase
     /// Schválí výdaj
     /// </summary>
     [HttpPost("{id}/approve")]
-    public async Task<IActionResult> ApproveExpense(Guid id, [FromBody] string? note = null)
+    public async Task<IActionResult> ApproveExpense(Guid id, [FromBody] ApprovalRequest? request = null)
     {
-        var expense = await _context.Expenses.FindAsync(id);
-        if (expense == null)
+        try
         {
-            return NotFound();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var expense = await _context.Expenses.FindAsync(id);
+            if (expense == null)
+            {
+                return NotFound(new { message = "Expense not found" });
+            }
+
+            expense.Status = ExpenseStatus.Approved;
+            expense.LastDecisionAt = DateTime.UtcNow;
+            expense.LastDecisionBy = userId;
+            expense.UpdatedAt = DateTime.UtcNow;
+
+            // Přidat záznam do historie schvalování
+            var approval = new ExpenseApproval
+            {
+                Id = Guid.NewGuid(),
+                ExpenseId = id,
+                Action = ApprovalAction.Approved,
+                ActorUserId = userId,
+                Note = request?.Note,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = userId
+            };
+
+            _context.ExpenseApprovals.Add(approval);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Expense {ExpenseId} approved by {UserId}", id, userId);
+
+            return Ok(new { message = "Expense approved successfully" });
         }
-
-        expense.Status = ExpenseStatus.Approved;
-        expense.LastDecisionAt = DateTime.UtcNow;
-        expense.LastDecisionBy = "test-manager"; // TODO: Získat z authentication
-        expense.UpdatedAt = DateTime.UtcNow;
-
-        // Přidat záznam do historie schvalování
-        var approval = new ExpenseApproval
+        catch (Exception ex)
         {
-            Id = Guid.NewGuid(),
-            ExpenseId = id,
-            Action = ApprovalAction.Approved,
-            ActorUserId = "test-manager",
-            Note = note,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "test-manager"
-        };
-
-        _context.ExpenseApprovals.Add(approval);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+            _logger.LogError(ex, "Failed to approve expense {ExpenseId}", id);
+            return StatusCode(500, new { message = "Failed to approve expense" });
+        }
     }
 
     /// <summary>
     /// Zamítne výdaj
     /// </summary>
     [HttpPost("{id}/reject")]
-    public async Task<IActionResult> RejectExpense(Guid id, [FromBody] string rejectionNote)
+    public async Task<IActionResult> RejectExpense(Guid id, [FromBody] ApprovalRequest request)
     {
-        var expense = await _context.Expenses.FindAsync(id);
-        if (expense == null)
+        try
         {
-            return NotFound();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request?.Note))
+            {
+                return BadRequest(new { message = "Rejection note is required" });
+            }
+
+            var expense = await _context.Expenses.FindAsync(id);
+            if (expense == null)
+            {
+                return NotFound(new { message = "Expense not found" });
+            }
+
+            expense.Status = ExpenseStatus.Rejected;
+            expense.LastDecisionAt = DateTime.UtcNow;
+            expense.LastDecisionBy = userId;
+            expense.RejectionNote = request.Note;
+            expense.UpdatedAt = DateTime.UtcNow;
+
+            var approval = new ExpenseApproval
+            {
+                Id = Guid.NewGuid(),
+                ExpenseId = id,
+                Action = ApprovalAction.Rejected,
+                ActorUserId = userId,
+                Note = request.Note,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = userId
+            };
+
+            _context.ExpenseApprovals.Add(approval);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Expense {ExpenseId} rejected by {UserId}", id, userId);
+
+            return Ok(new { message = "Expense rejected successfully" });
         }
-
-        expense.Status = ExpenseStatus.Rejected;
-        expense.LastDecisionAt = DateTime.UtcNow;
-        expense.LastDecisionBy = "test-manager";
-        expense.RejectionNote = rejectionNote;
-        expense.UpdatedAt = DateTime.UtcNow;
-
-        var approval = new ExpenseApproval
+        catch (Exception ex)
         {
-            Id = Guid.NewGuid(),
-            ExpenseId = id,
-            Action = ApprovalAction.Rejected,
-            ActorUserId = "test-manager",
-            Note = rejectionNote,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "test-manager"
-        };
-
-        _context.ExpenseApprovals.Add(approval);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+            _logger.LogError(ex, "Failed to reject expense {ExpenseId}", id);
+            return StatusCode(500, new { message = "Failed to reject expense" });
+        }
     }
 
     /// <summary>

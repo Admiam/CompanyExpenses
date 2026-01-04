@@ -1,11 +1,13 @@
 import { MainLayout } from "@/components/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, Filter, Download } from "lucide-react";
+import { Plus, Filter, Download, Check, X } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { ExpenseFormModal } from "@/components/modals/ExpenseFormModal";
+import { ApprovalModal } from "@/components/modals/ApprovalModal";
+import { ExpenseDetailModal } from "@/components/modals/ExpenseDetailModal";
 import { expensesApi } from "@/lib/proxy/api";
 import type { CreateExpenseRequest } from "@/lib/proxy/types";
 import { toast } from "sonner";
@@ -41,6 +43,11 @@ export default function ExpensesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+  const [approvalAction, setApprovalAction] = useState<"approve" | "reject">("approve");
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailExpenseId, setDetailExpenseId] = useState<string | null>(null);
 
   type ExpenseFormType = {
     id: string;
@@ -90,6 +97,39 @@ export default function ExpensesPage() {
       console.error("Failed to create expense:", error);
       toast.error("Nepodařilo se vytvořit výdaj");
     }
+  };
+
+  const handleApprovalAction = (expense: Expense, action: "approve" | "reject") => {
+    setSelectedExpense(expense);
+    setApprovalAction(action);
+    setApprovalModalOpen(true);
+  };
+
+  const handleApprovalConfirm = async (expenseId: string, action: "approve" | "reject", note?: string) => {
+    try {
+      if (action === "approve") {
+        await expensesApi.approveExpense(expenseId, note);
+        toast.success("Výdaj byl úspěšně schválen");
+      } else {
+        if (!note) {
+          toast.error("Důvod zamítnutí je povinný");
+          return;
+        }
+        await expensesApi.rejectExpense(expenseId, note);
+        toast.success("Výdaj byl zamítnut");
+      }
+
+      loadExpenses(); // Refresh expense list
+      setApprovalModalOpen(false);
+    } catch (error) {
+      console.error("Failed to process approval:", error);
+      toast.error(action === "approve" ? "Nepodařilo se schválit výdaj" : "Nepodařilo se zamítnout výdaj");
+    }
+  };
+
+  const handleShowDetail = (expenseId: string) => {
+    setDetailExpenseId(expenseId);
+    setDetailModalOpen(true);
   };
 
   // Calculate stats
@@ -197,23 +237,33 @@ export default function ExpensesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setEditingExpense({
-                              id: expense.id,
-                              description: expense.description,
-                              amount: expense.amount,
-                              expenseDate: expense.expenseDate,
-                              categoryId: expense.categoryId,
-                              workplaceId: expense.workplaceId,
-                              currency: expense.currency,
-                            })
-                          }
-                        >
-                          Detail
-                        </Button>
+                        <div className="flex gap-1 justify-end">
+                          {expense.status === "Pending" && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleApprovalAction(expense, "approve")}
+                                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                title="Schválit"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleApprovalAction(expense, "reject")}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                title="Zamítnout"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => handleShowDetail(expense.id)}>
+                            Detail
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -223,8 +273,16 @@ export default function ExpensesPage() {
           </CardContent>
         </Card>
 
-        {/* Modal */}
+        {/* Modals */}
         <ExpenseFormModal open={isModalOpen} onOpenChange={setIsModalOpen} expense={editingExpense} onSave={handleSave} />
+        <ApprovalModal
+          open={approvalModalOpen}
+          onOpenChange={setApprovalModalOpen}
+          expense={selectedExpense}
+          action={approvalAction}
+          onConfirm={handleApprovalConfirm}
+        />
+        <ExpenseDetailModal open={detailModalOpen} onOpenChange={setDetailModalOpen} expenseId={detailExpenseId} />
       </div>
     </MainLayout>
   );

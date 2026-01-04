@@ -11,7 +11,6 @@ import type {
   Expense,
   CreateExpenseRequest,
   UpdateExpenseRequest,
-  PaginatedResponse,
   Workplace,
   CreateWorkplaceRequest,
   UpdateWorkplaceRequest,
@@ -79,6 +78,14 @@ export const expensesApi = {
 
   async getStatistics(): Promise<Record<string, unknown>> {
     return apiProxy.get("/api/expenses/statistics");
+  },
+
+  async approveExpense(id: string, note?: string): Promise<void> {
+    return apiProxy.post(`/api/expenses/${id}/approve`, { note });
+  },
+
+  async rejectExpense(id: string, note: string): Promise<void> {
+    return apiProxy.post(`/api/expenses/${id}/reject`, { note });
   },
 };
 

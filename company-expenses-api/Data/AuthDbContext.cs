@@ -13,6 +13,7 @@ public class AuthDbContext : DbContext
     }
 
     public DbSet<IdentityRole> Roles { get; set; }
+    public DbSet<IdentityUser> NetUsers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,6 +23,11 @@ public class AuthDbContext : DbContext
         modelBuilder.Entity<IdentityRole>(entity =>
         {
             entity.ToTable("AspNetRoles");
+        });
+
+        modelBuilder.Entity<IdentityUser>(entity =>
+        {
+            entity.ToTable("AspNetUsers");
         });
     }
 }

@@ -38,3 +38,11 @@ public class ExpenseAttachmentDto
     public string UploadedByUserId { get; set; } = string.Empty;
     public DateTime UploadedAt { get; set; }
 }
+
+/// <summary>
+/// DTO for approval/rejection requests
+/// </summary>
+public class ApprovalRequest
+{
+    public string? Note { get; set; }
+}

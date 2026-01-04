@@ -8,6 +8,7 @@ public class ExpenseAttachment
     public string StoredFileName { get; set; } = string.Empty;
     public string DataType { get; set; } = string.Empty; // "image/jpeg", "application/pdf"...
     public long FileSize { get; set; }
+    public string Base64Data { get; set; } = string.Empty; // Compressed image stored as base64
     public string UploadedByUserId { get; set; } = string.Empty; // AspNetUsers.Id
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 

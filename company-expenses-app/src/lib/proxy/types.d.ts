@@ -50,21 +50,38 @@ export interface User {
   role?: string;
 }
 
-// Expense types - TODO: Expand based on your backend models
+// Expense types
 export interface Expense {
   id: string;
-  amount: number;
   description: string;
-  category: string;
-  date: string;
-  userId: string;
+  amount: number;
+  currency: string;
+  expenseDate: string;
+  status: "Pending" | "Approved" | "Rejected";
+  employeeUserId: string;
+  workplaceId: string;
+  categoryId: string;
+  workplace?: { id: string; name: string };
+  category?: { id: string; name: string };
+  submittedAt: string;
+  createdAt: string;
+}
+
+export interface ExpenseAttachmentUpload {
+  originalFileName: string;
+  dataType: string;
+  base64Data: string;
+  originalFileSize: number;
 }
 
 export interface CreateExpenseRequest {
-  amount: number;
   description: string;
-  category: string;
-  date: string;
+  amount: number;
+  currency?: string;
+  expenseDate: string;
+  categoryId: string;
+  workplaceId: string;
+  attachments?: ExpenseAttachmentUpload[];
 }
 
 export interface UpdateExpenseRequest extends Partial<CreateExpenseRequest> {

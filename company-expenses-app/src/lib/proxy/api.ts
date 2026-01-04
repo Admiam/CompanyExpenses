@@ -53,10 +53,8 @@ export const authApi = {
 };
 
 export const expensesApi = {
-  async getExpenses(page = 1, pageSize = 10): Promise<PaginatedResponse<Expense>> {
-    return apiProxy.get<PaginatedResponse<Expense>>("/api/expenses", {
-      params: { page, pageSize },
-    });
+  async getExpenses(): Promise<Expense[]> {
+    return apiProxy.get<Expense[]>("/api/expenses");
   },
 
   async getExpense(id: string): Promise<Expense> {

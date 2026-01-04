@@ -1,8 +1,11 @@
 using CompanyExpenses.Database.Data;
 using CompanyExpenses.Models.Entities;
 using CompanyExpenses.Models.Enums;
+using CompanyExpenses.Api.DTOs;
+using CompanyExpenses.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace CompanyExpenses.Api.Controllers;
 
@@ -12,18 +15,23 @@ public class ExpensesController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly ILogger<ExpensesController> _logger;
+    private readonly IImageCompressionService _imageCompressionService;
 
-    public ExpensesController(AppDbContext context, ILogger<ExpensesController> logger)
+    public ExpensesController(
+        AppDbContext context,
+        ILogger<ExpensesController> logger,
+        IImageCompressionService imageCompressionService)
     {
         _context = context;
         _logger = logger;
+        _imageCompressionService = imageCompressionService;
     }
 
     /// <summary>
     /// Získá seznam všech výdajů (s filtrováním)
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Expense>>> GetExpenses(
+    public async Task<ActionResult> GetExpenses(
         [FromQuery] Guid? workplaceId = null,
         [FromQuery] string? employeeUserId = null,
         [FromQuery] ExpenseStatus? status = null)
@@ -31,7 +39,6 @@ public class ExpensesController : ControllerBase
         var query = _context.Expenses
             .Include(e => e.Category)
             .Include(e => e.Workplace)
-            .Include(e => e.Attachments)
             .AsQueryable();
 
         if (workplaceId.HasValue)
@@ -49,9 +56,29 @@ public class ExpensesController : ControllerBase
             query = query.Where(e => e.Status == status.Value);
         }
 
-        return await query
+        var expenses = await query
             .OrderByDescending(e => e.ExpenseDate)
             .ToListAsync();
+
+        // Map to DTO to avoid circular references
+        var result = expenses.Select(e => new
+        {
+            id = e.Id,
+            description = e.Description,
+            amount = e.Amount,
+            currency = e.Currency,
+            expenseDate = e.ExpenseDate,
+            status = e.Status.ToString(),
+            employeeUserId = e.EmployeeUserId,
+            workplaceId = e.WorkplaceId,
+            categoryId = e.CategoryId,
+            workplace = e.Workplace != null ? new { id = e.Workplace.Id, name = e.Workplace.Name } : null,
+            category = e.Category != null ? new { id = e.Category.Id, name = e.Category.Name } : null,
+            submittedAt = e.SubmittedAt,
+            createdAt = e.CreatedAt
+        }).ToList();
+
+        return Ok(result);
     }
 
     /// <summary>
@@ -76,22 +103,94 @@ public class ExpensesController : ControllerBase
     }
 
     /// <summary>
-    /// Vytvoří nový výdaj
+    /// Vytvoří nový výdaj s přílohami
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<Expense>> CreateExpense(Expense expense)
+    public async Task<ActionResult<Expense>> CreateExpense([FromBody] CreateExpenseDto dto)
     {
-        expense.Id = Guid.NewGuid();
-        expense.CreatedAt = DateTime.UtcNow;
-        expense.SubmittedAt = DateTime.UtcNow;
-        expense.Status = ExpenseStatus.Pending;
-        expense.CreatedBy = "test-user"; // TODO: Získat z authentication
-        expense.EmployeeUserId = "test-user"; // TODO: Získat z authentication
+        try
+        {
+            // Get authenticated user ID
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
 
-        _context.Expenses.Add(expense);
-        await _context.SaveChangesAsync();
+            // Create expense entity
+            var expense = new Expense
+            {
+                Id = Guid.NewGuid(),
+                Description = dto.Description,
+                Amount = dto.Amount,
+                Currency = dto.Currency,
+                ExpenseDate = dto.ExpenseDate,
+                CategoryId = dto.CategoryId,
+                WorkplaceId = dto.WorkplaceId,
+                EmployeeUserId = userId,
+                Status = ExpenseStatus.Pending,
+                SubmittedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = userId
+            };
 
-        return CreatedAtAction(nameof(GetExpense), new { id = expense.Id }, expense);
+            _context.Expenses.Add(expense);
+
+            // Process and add attachments
+            if (dto.Attachments != null && dto.Attachments.Any())
+            {
+                foreach (var attachmentDto in dto.Attachments)
+                {
+                    try
+                    {
+                        // Compress image to base64
+                        var (compressedBase64, compressedSize) = await _imageCompressionService
+                            .CompressImageToBase64Async(attachmentDto.Base64Data, attachmentDto.DataType);
+
+                        var attachment = new ExpenseAttachment
+                        {
+                            Id = Guid.NewGuid(),
+                            ExpenseId = expense.Id,
+                            OriginalFileName = attachmentDto.OriginalFileName,
+                            StoredFileName = $"{Guid.NewGuid()}{Path.GetExtension(attachmentDto.OriginalFileName)}",
+                            DataType = "image/jpeg", // Always JPEG after compression
+                            FileSize = compressedSize,
+                            Base64Data = compressedBase64,
+                            UploadedByUserId = userId,
+                            UploadedAt = DateTime.UtcNow
+                        };
+
+                        _context.ExpenseAttachments.Add(attachment);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to compress attachment: {FileName}", attachmentDto.OriginalFileName);
+                        // Continue with other attachments
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Expense created: {ExpenseId} by user {UserId}", expense.Id, userId);
+
+            // Return simple response to avoid circular reference issues
+            return CreatedAtAction(nameof(GetExpense), new { id = expense.Id }, new
+            {
+                id = expense.Id,
+                description = expense.Description,
+                amount = expense.Amount,
+                currency = expense.Currency,
+                expenseDate = expense.ExpenseDate,
+                status = expense.Status.ToString(),
+                attachmentsCount = dto.Attachments?.Count ?? 0
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create expense");
+            return StatusCode(500, new { message = "Failed to create expense" });
+        }
     }
 
     /// <summary>

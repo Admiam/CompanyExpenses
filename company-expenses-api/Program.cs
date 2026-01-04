@@ -116,6 +116,7 @@ builder.Services.AddCors(options =>
 
 // Register services
 builder.Services.AddScoped<CompanyExpenses.Api.Services.IEmailService, CompanyExpenses.Api.Services.EmailService>();
+builder.Services.AddScoped<CompanyExpenses.Api.Services.IImageCompressionService, CompanyExpenses.Api.Services.ImageCompressionService>();
 
 var app = builder.Build();
 

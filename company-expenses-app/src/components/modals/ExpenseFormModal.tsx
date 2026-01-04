@@ -4,6 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { categoriesApi, workplacesApi } from "@/lib/proxy/api";
+import type { ExpenseCategory, Workplace } from "@/lib/proxy/types";
+
+interface ExpenseAttachment {
+  id: string;
+  originalFileName: string;
+  dataType: string;
+  fileSize: number;
+  uploadedAt: string;
+}
 
 interface ExpenseFormModalProps {
   open: boolean;
@@ -30,17 +41,29 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
     currency: "CZK",
   });
 
-  // Mock data - nahraď API voláním
-  const categories = [
-    { id: "1", name: "Pohonné hmoty" },
-    { id: "2", name: "Stravování" },
-    { id: "3", name: "Kancelářské potřeby" },
-  ];
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<{ file: File; preview: string }[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<ExpenseAttachment[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const [workplaces, setWorkplaces] = useState<Workplace[]>([]);
 
-  const workplaces = [
-    { id: "1", name: "Praha - Centrála" },
-    { id: "2", name: "Brno - Pobočka" },
-  ];
+  // Load categories and workplaces from API
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [categoriesData, workplacesData] = await Promise.all([categoriesApi.getCategories(), workplacesApi.getWorkplaces()]);
+        // Filter only active items
+        setCategories(categoriesData.filter((c) => c.isActive));
+        setWorkplaces(workplacesData.filter((w) => w.isActive));
+      } catch (error) {
+        console.error("Failed to load categories and workplaces:", error);
+      }
+    };
+
+    if (open) {
+      loadData();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (expense) {
@@ -52,6 +75,8 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
         workplaceId: expense.workplaceId,
         currency: expense.currency || "CZK",
       });
+      // TODO: Load existing attachments from API
+      // fetchAttachments(expense.id);
     } else {
       setFormData({
         description: "",
@@ -61,27 +86,113 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
         workplaceId: "",
         currency: "CZK",
       });
+      setSelectedFiles([]);
+      setFilePreviews([]);
+      setExistingAttachments([]);
     }
   }, [expense, open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+
+    // Validate each file
+    const validFiles: File[] = [];
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
+
+    for (const file of files) {
+      // Validate file size (10 MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`${file.name}: Soubor je příliš velký. Maximální velikost je 10 MB.`);
+        continue;
+      }
+
+      // Validate file type
+      if (!allowedTypes.includes(file.type)) {
+        alert(`${file.name}: Nepodporovaný typ souboru. Povolené jsou pouze obrázky (JPEG, PNG, GIF).`);
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) return;
+
+    // Add to existing files
+    setSelectedFiles((prev) => [...prev, ...validFiles]);
+
+    // Create previews for images
+    validFiles.forEach((file) => {
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFilePreviews((prev) => [...prev, { file, preview: reader.result as string }]);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Reset input
+    e.target.value = "";
+  };
+
+  const handleRemoveFile = (fileToRemove: File) => {
+    setSelectedFiles((prev) => prev.filter((f) => f !== fileToRemove));
+    setFilePreviews((prev) => prev.filter((p) => p.file !== fileToRemove));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Convert files to base64
+    const attachments = await Promise.all(
+      selectedFiles.map(async (file) => {
+        const base64 = await fileToBase64(file);
+        return {
+          originalFileName: file.name,
+          dataType: file.type,
+          base64Data: base64.split(",")[1], // Remove data:image/jpeg;base64, prefix
+          originalFileSize: file.size,
+        };
+      })
+    );
+
     onSave({
-      ...formData,
+      description: formData.description,
       amount: parseFloat(formData.amount),
+      currency: formData.currency,
+      expenseDate: formData.expenseDate,
+      categoryId: formData.categoryId,
+      workplaceId: formData.workplaceId,
+      attachments,
+    });
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
+      <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
+          <DialogHeader className="px-6 pt-6 flex-shrink-0">
             <DialogTitle>{expense ? "Upravit výdaj" : "Nový výdaj"}</DialogTitle>
             <DialogDescription>{expense ? "Upravte údaje výdaje" : "Vytvořte nový výdaj"}</DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 px-6 overflow-y-auto flex-1">
+            {/* Scrollable content area */}
             <div className="grid gap-2">
               <Label htmlFor="description">Popis výdaje</Label>
               <Input
@@ -119,40 +230,101 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="category">Kategorie</Label>
-              <Select value={formData.categoryId} onValueChange={(value) => setFormData({ ...formData, categoryId: value })}>
-                <SelectTrigger id="category">
-                  <SelectValue placeholder="Vyberte kategorii" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="category">Kategorie</Label>
+                <Select value={formData.categoryId} onValueChange={(value) => setFormData({ ...formData, categoryId: value })}>
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Vyberte kategorii" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="workplace">Pracoviště</Label>
+                <Select value={formData.workplaceId} onValueChange={(value) => setFormData({ ...formData, workplaceId: value })}>
+                  <SelectTrigger id="workplace">
+                    <SelectValue placeholder="Vyberte pracoviště" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workplaces.map((wp) => (
+                      <SelectItem key={wp.id} value={wp.id}>
+                        {wp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
+            {/* File Upload Section */}
             <div className="grid gap-2">
-              <Label htmlFor="workplace">Pracoviště</Label>
-              <Select value={formData.workplaceId} onValueChange={(value) => setFormData({ ...formData, workplaceId: value })}>
-                <SelectTrigger id="workplace">
-                  <SelectValue placeholder="Vyberte pracoviště" />
-                </SelectTrigger>
-                <SelectContent>
-                  {workplaces.map((wp) => (
-                    <SelectItem key={wp.id} value={wp.id}>
-                      {wp.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="receipt">Účtenky / Doklady</Label>
+
+              <div className="space-y-3">
+                {/* Existing attachments */}
+                {existingAttachments.length > 0 && (
+                  <div className="space-y-2">
+                    {existingAttachments.map((attachment) => (
+                      <div key={attachment.id} className="border border-gray-300 rounded-lg p-3 flex items-center gap-3">
+                        <div className="flex-shrink-0">
+                          <ImageIcon className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{attachment.originalFileName}</p>
+                          <p className="text-xs text-gray-500">{formatFileSize(attachment.fileSize)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Selected files with previews */}
+                {filePreviews.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {filePreviews.map((item, index) => (
+                      <div key={index} className="border border-gray-300 rounded-lg p-2 relative group">
+                        <div className="aspect-square relative">
+                          <img src={item.preview} alt={item.file.name} className="w-full h-full object-cover rounded" />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleRemoveFile(item.file)}
+                            className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <p className="text-xs text-gray-600 truncate mt-1">{item.file.name}</p>
+                        <p className="text-xs text-gray-400">{formatFileSize(item.file.size)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload button */}
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors">
+                  <label htmlFor="receipt" className="cursor-pointer flex flex-col items-center gap-2">
+                    <Upload className="h-6 w-6 text-gray-400" />
+                    <span className="text-sm text-gray-600">{selectedFiles.length > 0 ? "Přidat další obrázky" : "Klikněte pro nahrání obrázků"}</span>
+                    <span className="text-xs text-gray-500">PNG, JPG, GIF (max. 10 MB, lze vybrat více)</span>
+                  </label>
+                  <input id="receipt" type="file" multiple className="hidden" accept="image/jpeg,image/jpg,image/png,image/gif" onChange={handleFileSelect} />
+                </div>
+              </div>
             </div>
           </div>
+          {/* End scrollable content */}
 
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 px-6 pb-6 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Zrušit
             </Button>

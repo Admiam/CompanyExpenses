@@ -4,54 +4,44 @@ import { Plus, Filter, Download } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ExpenseFormModal } from "@/components/modals/ExpenseFormModal";
+import { expensesApi } from "@/lib/proxy/api";
+import type { CreateExpenseRequest } from "@/lib/proxy/types";
+import { toast } from "sonner";
 
-// Mock data - později nahraď API voláním
-const mockExpenses = [
-  {
-    id: "1",
-    description: "Nákup kancelářských potřeb",
-    amount: 2500,
-    date: "2024-12-15",
-    status: "pending",
-    employee: "Jan Novák",
-    workplace: "Praha - Centrála",
-  },
-  {
-    id: "2",
-    description: "Firemní oběd s klientem",
-    amount: 1200,
-    date: "2024-12-14",
-    status: "approved",
-    employee: "Marie Svobodová",
-    workplace: "Brno - Pobočka",
-  },
-  {
-    id: "3",
-    description: "Tankování služebního vozu",
-    amount: 1800,
-    date: "2024-12-13",
-    status: "rejected",
-    employee: "Petr Dvořák",
-    workplace: "Praha - Centrála",
-  },
-];
+interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  currency: string;
+  expenseDate: string;
+  status: "Pending" | "Approved" | "Rejected";
+  employeeUserId: string;
+  workplaceId: string;
+  categoryId: string;
+  workplace?: { id: string; name: string };
+  category?: { id: string; name: string };
+  attachments?: any[];
+}
 
 const statusColors = {
-  pending: "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20",
-  approved: "bg-green-500/10 text-green-500 hover:bg-green-500/20",
-  rejected: "bg-red-500/10 text-red-500 hover:bg-red-500/20",
+  Pending: "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20",
+  Approved: "bg-green-500/10 text-green-500 hover:bg-green-500/20",
+  Rejected: "bg-red-500/10 text-red-500 hover:bg-red-500/20",
 };
 
 const statusLabels = {
-  pending: "Čeká na schválení",
-  approved: "Schváleno",
-  rejected: "Zamítnuto",
+  Pending: "Čeká na schválení",
+  Approved: "Schváleno",
+  Rejected: "Zamítnuto",
 };
 
 export default function ExpensesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   type ExpenseFormType = {
     id: string;
     description: string;
@@ -64,16 +54,50 @@ export default function ExpensesPage() {
 
   const [editingExpense, setEditingExpense] = useState<ExpenseFormType | null>(null);
 
+  // Load expenses from API
+  const loadExpenses = async () => {
+    try {
+      setIsLoading(true);
+      const response = await expensesApi.getExpenses();
+      setExpenses(response);
+    } catch (error) {
+      console.error("Failed to load expenses:", error);
+      toast.error("Nepodařilo se načíst výdaje");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadExpenses();
+  }, []);
+
   const handleCreate = () => {
     setEditingExpense(null);
     setIsModalOpen(true);
   };
 
-  const handleSave = (data: any) => {
-    console.log("Saving expense:", data);
-    // TODO: API call to POST /api/Expenses
-    setIsModalOpen(false);
+  const handleSave = async (data: CreateExpenseRequest) => {
+    try {
+      console.log("Creating expense:", data);
+      await expensesApi.createExpense(data);
+
+      toast.success("Výdaj byl úspěšně vytvořen");
+
+      setIsModalOpen(false);
+      loadExpenses(); // Refresh expense list
+    } catch (error) {
+      console.error("Failed to create expense:", error);
+      toast.error("Nepodařilo se vytvořit výdaj");
+    }
   };
+
+  // Calculate stats
+  const totalAmount = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const pendingExpenses = expenses.filter((exp) => exp.status === "Pending");
+  const pendingAmount = pendingExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const approvedExpenses = expenses.filter((exp) => exp.status === "Approved");
+  const approvedAmount = approvedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
   return (
     <MainLayout>
@@ -105,8 +129,8 @@ export default function ExpensesPage() {
               <CardTitle className="text-sm font-medium">Celkem výdajů</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">5 500 Kč</div>
-              <p className="text-xs text-muted-foreground">Za tento měsíc</p>
+              <div className="text-2xl font-bold">{totalAmount.toLocaleString("cs-CZ")} Kč</div>
+              <p className="text-xs text-muted-foreground">{expenses.length} výdajů</p>
             </CardContent>
           </Card>
           <Card>
@@ -114,8 +138,8 @@ export default function ExpensesPage() {
               <CardTitle className="text-sm font-medium">Čeká na schválení</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">2 500 Kč</div>
-              <p className="text-xs text-muted-foreground">1 výdaj</p>
+              <div className="text-2xl font-bold">{pendingAmount.toLocaleString("cs-CZ")} Kč</div>
+              <p className="text-xs text-muted-foreground">{pendingExpenses.length} výdajů</p>
             </CardContent>
           </Card>
           <Card>
@@ -123,8 +147,8 @@ export default function ExpensesPage() {
               <CardTitle className="text-sm font-medium">Schváleno</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1 200 Kč</div>
-              <p className="text-xs text-muted-foreground">1 výdaj</p>
+              <div className="text-2xl font-bold">{approvedAmount.toLocaleString("cs-CZ")} Kč</div>
+              <p className="text-xs text-muted-foreground">{approvedExpenses.length} výdajů</p>
             </CardContent>
           </Card>
         </div>
@@ -136,53 +160,66 @@ export default function ExpensesPage() {
             <CardDescription>Přehled všech výdajů s možností rozkliknout detail</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Popis</TableHead>
-                  <TableHead>Zaměstnanec</TableHead>
-                  <TableHead>Pracoviště</TableHead>
-                  <TableHead>Datum</TableHead>
-                  <TableHead className="text-right">Částka</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Akce</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockExpenses.map((expense) => (
-                  <TableRow key={expense.id} className="cursor-pointer hover:bg-muted/50">
-                    <TableCell className="font-medium">{expense.description}</TableCell>
-                    <TableCell>{expense.employee}</TableCell>
-                    <TableCell>{expense.workplace}</TableCell>
-                    <TableCell>{new Date(expense.date).toLocaleDateString("cs-CZ")}</TableCell>
-                    <TableCell className="text-right">{expense.amount.toLocaleString("cs-CZ")} Kč</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={statusColors[expense.status as keyof typeof statusColors]}>
-                        {statusLabels[expense.status as keyof typeof statusLabels]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setEditingExpense({
-                            id: expense.id,
-                            description: expense.description,
-                            amount: expense.amount,
-                            expenseDate: expense.date,
-                            categoryId: "mock-category", // replace with real categoryId if available
-                            workplaceId: "mock-workplace", // replace with real workplaceId if available
-                          })
-                        }
-                      >
-                        Detail
-                      </Button>
-                    </TableCell>
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <p className="text-muted-foreground">Načítání výdajů...</p>
+              </div>
+            ) : expenses.length === 0 ? (
+              <div className="flex justify-center py-8">
+                <p className="text-muted-foreground">Zatím žádné výdaje</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Popis</TableHead>
+                    <TableHead>Kategorie</TableHead>
+                    <TableHead>Pracoviště</TableHead>
+                    <TableHead>Datum</TableHead>
+                    <TableHead className="text-right">Částka</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Akce</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {expenses.map((expense) => (
+                    <TableRow key={expense.id} className="cursor-pointer hover:bg-muted/50">
+                      <TableCell className="font-medium">{expense.description || "Bez popisu"}</TableCell>
+                      <TableCell>{expense.category?.name || "N/A"}</TableCell>
+                      <TableCell>{expense.workplace?.name || "N/A"}</TableCell>
+                      <TableCell>{new Date(expense.expenseDate).toLocaleDateString("cs-CZ")}</TableCell>
+                      <TableCell className="text-right">
+                        {expense.amount.toLocaleString("cs-CZ")} {expense.currency}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={statusColors[expense.status]}>
+                          {statusLabels[expense.status]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setEditingExpense({
+                              id: expense.id,
+                              description: expense.description,
+                              amount: expense.amount,
+                              expenseDate: expense.expenseDate,
+                              categoryId: expense.categoryId,
+                              workplaceId: expense.workplaceId,
+                              currency: expense.currency,
+                            })
+                          }
+                        >
+                          Detail
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 

@@ -87,9 +87,33 @@ export interface Workplace {
 export interface WorkplaceLimit {
   id: string;
   workplaceId: string;
-  categoryId: string;
-  monthlyLimit: number;
-  isActive: boolean;
+  categoryId?: string;
+  periodFrom: string;
+  periodTo: string;
+  limitAmount: number;
+  currency: string;
+  createdAt: string;
+  createdBy: string;
+  category?: ExpenseCategory;
+}
+
+export interface CreateWorkplaceLimitRequest {
+  workplaceId: string;
+  categoryId?: string;
+  periodFrom: string;
+  periodTo: string;
+  limitAmount: number;
+  currency?: string;
+}
+
+export interface UpdateWorkplaceLimitRequest {
+  id: string;
+  workplaceId: string;
+  categoryId?: string;
+  periodFrom: string;
+  periodTo: string;
+  limitAmount: number;
+  currency?: string;
 }
 
 export interface CreateWorkplaceRequest {
@@ -125,13 +149,7 @@ export interface UpdateWorkplaceMemberRequest {
 }
 
 // Invitation types
-export enum InvitationStatus {
-  Pending = 0,
-  Accepted = 1,
-  Declined = 2,
-  Expired = 3,
-  Cancelled = 4,
-}
+import type { InvitationStatusType } from "@/constants/invitation";
 
 export interface Invitation {
   id: string;
@@ -142,7 +160,7 @@ export interface Invitation {
   expiresAt: string;
   acceptedAt?: string;
   invitedByUserId: string;
-  status: InvitationStatus;
+  status: InvitationStatusType;
   createdAt: string;
   createdBy: string;
   workplace?: Workplace;

@@ -1,52 +1,32 @@
 import { MainLayout } from "@/components/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, Mail, Shield, User, CheckCircle, XCircle, Loader2, RotateCw } from "lucide-react";
+import { Plus, Shield, User, Loader2, RotateCw, Mail } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { invitationsApi } from "@/lib/proxy/api";
-// import { type Invitation, InvitationStatus } from "./types";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { UserInviteModal } from "@/components/modals/UserInviteModal";
+import { InvitationStatus, roleLabels, roleColors } from "@/constants";
+import type { Invitation } from "@/lib/proxy/types";
+import { getInvitationStatusLabel, getInvitationStatusIcon } from "@/utils";
 
-const InvitationStatus = {
-  Pending: 0,
-  Accepted: 1,
-  Declined: 2,
-  Expired: 3,
-  Cancelled: 4,
-} as const;
-
-type InvitationStatus = (typeof InvitationStatus)[keyof typeof InvitationStatus];
-
-export interface Workplace {
+interface UserType {
   id: string;
   name: string;
-  description?: string;
-  address?: string;
-  isActive: boolean;
-}
-
-export interface Invitation {
-  id: string;
   email: string;
-  invitedRoleId?: string;
-  workplaceId?: string;
-  token: string;
-  expiresAt: string;
-  acceptedAt?: string;
-  invitedByUserId: string;
-  status: InvitationStatus;
-  createdAt: string;
-  createdBy: string;
-  workplace?: Workplace;
+  role: "admin" | "manager" | "employee";
+  workplace: string;
+  status: string;
+  expenseCount: number;
+  totalExpenses: number;
 }
 
 // Mock data
-const mockUsers = [
+const mockUsers: UserType[] = [
   {
     id: "1",
     name: "Jan Novák",
@@ -79,55 +59,11 @@ const mockUsers = [
   },
 ];
 
-const roleLabels = {
-  admin: "Administrátor",
-  manager: "Manažer",
-  employee: "Zaměstnanec",
-};
-
-const roleColors = {
-  admin: "bg-purple-500/10 text-purple-500",
-  manager: "bg-blue-500/10 text-blue-500",
-  employee: "bg-gray-500/10 text-gray-500",
-};
-
-const getStatusLabel = (status: InvitationStatus): string => {
-  switch (status) {
-    case InvitationStatus.Pending:
-      return "Pending";
-    case InvitationStatus.Accepted:
-      return "Accepted";
-    case InvitationStatus.Declined:
-      return "Declined";
-    case InvitationStatus.Expired:
-      return "Expired";
-    case InvitationStatus.Cancelled:
-      return "Cancelled";
-    default:
-      return "Unknown";
-  }
-};
-
-const getStatusIcon = (status: InvitationStatus) => {
-  switch (status) {
-    case InvitationStatus.Pending:
-      return <Mail className="h-4 w-4 text-yellow-500" />;
-    case InvitationStatus.Accepted:
-      return <CheckCircle className="h-4 w-4 text-green-500" />;
-    case InvitationStatus.Declined:
-    case InvitationStatus.Cancelled:
-      return <XCircle className="h-4 w-4 text-red-500" />;
-    case InvitationStatus.Expired:
-      return <XCircle className="h-4 w-4 text-gray-500" />;
-    default:
-      return null;
-  }
-};
-
 export default function UsersPage() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  
 
   useEffect(() => {
     loadInvitations();
@@ -335,8 +271,8 @@ export default function UsersPage() {
                           <TableCell>{new Date(invitation.expiresAt).toLocaleDateString()}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              {getStatusIcon(invitation.status)}
-                              <span className="text-sm">{getStatusLabel(invitation.status)}</span>
+                              {getInvitationStatusIcon(invitation.status)}
+                              <span className="text-sm">{getInvitationStatusLabel(invitation.status)}</span>
                             </div>
                           </TableCell>
                           <TableCell className="text-right">

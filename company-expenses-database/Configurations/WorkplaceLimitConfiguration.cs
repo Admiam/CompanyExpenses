@@ -41,5 +41,11 @@ public class WorkplaceLimitConfiguration : IEntityTypeConfiguration<WorkplaceLim
             .WithMany(w => w.Limits)
             .HasForeignKey(e => e.WorkplaceId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Relationship: WorkplaceLimit -> ExpenseCategory (optional)
+        builder.HasOne(e => e.Category)
+            .WithMany()
+            .HasForeignKey(e => e.CategoryId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

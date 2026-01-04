@@ -21,7 +21,6 @@ export class ApiProxy {
     // Request interceptor - add auth tokens, modify headers
     this.axiosInstance.interceptors.request.use(
       (config) => {
-        // Debug: log všechny requesty
         console.log(`🌐 ${config.method?.toUpperCase()} ${config.url}`);
         console.log(`   withCredentials: ${config.withCredentials}`);
 
@@ -36,19 +35,15 @@ export class ApiProxy {
     // Response interceptor - handle errors, refresh tokens
     this.axiosInstance.interceptors.response.use(
       (response) => {
-        // Debug: log úspěšné odpovědi
         console.log(`✅ ${response.config.method?.toUpperCase()} ${response.config.url} → ${response.status}`);
         return response;
       },
       (error: AxiosError) => {
-        // Handle different error scenarios
         if (error.response) {
           console.log(`❌ ${error.config?.method?.toUpperCase()} ${error.config?.url} → ${error.response.status}`);
 
-          // Server responded with error status
           switch (error.response.status) {
             case 401:
-              // Ticho - 401 je normální pro nepřihlášené
               break;
             case 403:
               console.error("Forbidden - insufficient permissions");
@@ -63,10 +58,8 @@ export class ApiProxy {
               console.error("API Error:", error.response.status);
           }
         } else if (error.request) {
-          // Request made but no response
           console.error("No response from server - check if API is running");
         } else {
-          // Error setting up request
           console.error("Request setup error:", error.message);
         }
 
@@ -75,41 +68,27 @@ export class ApiProxy {
     );
   }
 
-  /**
-   * GET request
-   */
+  
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.axiosInstance.get<T>(url, config);
     return response.data;
   }
 
-  /**
-   * POST request
-   */
   async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.axiosInstance.post<T>(url, data, config);
     return response.data;
   }
 
-  /**
-   * PUT request
-   */
   async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.axiosInstance.put<T>(url, data, config);
     return response.data;
   }
 
-  /**
-   * PATCH request
-   */
   async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.axiosInstance.patch<T>(url, data, config);
     return response.data;
   }
 
-  /**
-   * DELETE request
-   */
   async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.axiosInstance.delete<T>(url, config);
     return response.data;

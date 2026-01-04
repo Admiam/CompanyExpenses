@@ -24,19 +24,41 @@ public class InvitationsController : ControllerBase
     /// Gets all invitations (for admin)
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Invitation>>> GetInvitations()
+    public async Task<ActionResult<IEnumerable<InvitationDto>>> GetInvitations()
     {
-        return await _context.Invitations
+        var invitations = await _context.Invitations
             .Include(i => i.Workplace)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
+
+        return invitations.Select(i => new InvitationDto
+        {
+            Id = i.Id,
+            Email = i.Email,
+            InvitedRoleId = i.InvitedRoleId,
+            WorkplaceId = i.WorkplaceId,
+            Token = i.Token,
+            ExpiresAt = i.ExpiresAt,
+            AcceptedAt = i.AcceptedAt,
+            InvitedByUserId = i.InvitedByUserId,
+            Status = i.Status,
+            CreatedAt = i.CreatedAt,
+            CreatedBy = i.CreatedBy,
+            Workplace = i.Workplace != null ? new WorkplaceDto
+            {
+                Id = i.Workplace.Id,
+                Name = i.Workplace.Name,
+                Code = i.Workplace.Code,
+                IsActive = i.Workplace.IsActive
+            } : null
+        }).ToList();
     }
 
     /// <summary>
     /// Gets invitation by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<Invitation>> GetInvitation(Guid id)
+    public async Task<ActionResult<InvitationDto>> GetInvitation(Guid id)
     {
         var invitation = await _context.Invitations
             .Include(i => i.Workplace)
@@ -47,14 +69,34 @@ public class InvitationsController : ControllerBase
             return NotFound();
         }
 
-        return invitation;
+        return new InvitationDto
+        {
+            Id = invitation.Id,
+            Email = invitation.Email,
+            InvitedRoleId = invitation.InvitedRoleId,
+            WorkplaceId = invitation.WorkplaceId,
+            Token = invitation.Token,
+            ExpiresAt = invitation.ExpiresAt,
+            AcceptedAt = invitation.AcceptedAt,
+            InvitedByUserId = invitation.InvitedByUserId,
+            Status = invitation.Status,
+            CreatedAt = invitation.CreatedAt,
+            CreatedBy = invitation.CreatedBy,
+            Workplace = invitation.Workplace != null ? new WorkplaceDto
+            {
+                Id = invitation.Workplace.Id,
+                Name = invitation.Workplace.Name,
+                Code = invitation.Workplace.Code,
+                IsActive = invitation.Workplace.IsActive
+            } : null
+        };
     }
 
     /// <summary>
     /// Verifies invitation by token (used during registration)
     /// </summary>
     [HttpGet("verify/{token}")]
-    public async Task<ActionResult<Invitation>> VerifyInvitation(string token)
+    public async Task<ActionResult<InvitationDto>> VerifyInvitation(string token)
     {
         var invitation = await _context.Invitations
             .Include(i => i.Workplace)
@@ -77,14 +119,34 @@ public class InvitationsController : ControllerBase
             return BadRequest(new { message = "Invitation has expired" });
         }
 
-        return invitation;
+        return new InvitationDto
+        {
+            Id = invitation.Id,
+            Email = invitation.Email,
+            InvitedRoleId = invitation.InvitedRoleId,
+            WorkplaceId = invitation.WorkplaceId,
+            Token = invitation.Token,
+            ExpiresAt = invitation.ExpiresAt,
+            AcceptedAt = invitation.AcceptedAt,
+            InvitedByUserId = invitation.InvitedByUserId,
+            Status = invitation.Status,
+            CreatedAt = invitation.CreatedAt,
+            CreatedBy = invitation.CreatedBy,
+            Workplace = invitation.Workplace != null ? new WorkplaceDto
+            {
+                Id = invitation.Workplace.Id,
+                Name = invitation.Workplace.Name,
+                Code = invitation.Workplace.Code,
+                IsActive = invitation.Workplace.IsActive
+            } : null
+        };
     }
 
     /// <summary>
     /// Creates a new invitation
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<Invitation>> CreateInvitation(CreateInvitationDto dto)
+    public async Task<ActionResult<InvitationDto>> CreateInvitation(CreateInvitationDto dto)
     {
         // Check if email is already invited
         var existingInvitation = await _context.Invitations
@@ -96,10 +158,11 @@ public class InvitationsController : ControllerBase
         }
 
         // Check if workplace exists (if specified)
+        Workplace? workplace = null;
         if (dto.WorkplaceId.HasValue)
         {
-            var workplaceExists = await _context.Workplaces.AnyAsync(w => w.Id == dto.WorkplaceId.Value);
-            if (!workplaceExists)
+            workplace = await _context.Workplaces.FindAsync(dto.WorkplaceId.Value);
+            if (workplace == null)
             {
                 return BadRequest(new { message = "Workplace not found" });
             }
@@ -125,7 +188,29 @@ public class InvitationsController : ControllerBase
         // TODO: Send email with registration link
         _logger.LogInformation("Created invitation for {Email}, token: {Token}", dto.Email, invitation.Token);
 
-        return CreatedAtAction(nameof(GetInvitation), new { id = invitation.Id }, invitation);
+        var invitationDto = new InvitationDto
+        {
+            Id = invitation.Id,
+            Email = invitation.Email,
+            InvitedRoleId = invitation.InvitedRoleId,
+            WorkplaceId = invitation.WorkplaceId,
+            Token = invitation.Token,
+            ExpiresAt = invitation.ExpiresAt,
+            AcceptedAt = invitation.AcceptedAt,
+            InvitedByUserId = invitation.InvitedByUserId,
+            Status = invitation.Status,
+            CreatedAt = invitation.CreatedAt,
+            CreatedBy = invitation.CreatedBy,
+            Workplace = workplace != null ? new WorkplaceDto
+            {
+                Id = workplace.Id,
+                Name = workplace.Name,
+                Code = workplace.Code,
+                IsActive = workplace.IsActive
+            } : null
+        };
+
+        return CreatedAtAction(nameof(GetInvitation), new { id = invitation.Id }, invitationDto);
     }
 
     /// <summary>
@@ -202,9 +287,11 @@ public class InvitationsController : ControllerBase
     /// Resends invitation (refreshes token and expiration)
     /// </summary>
     [HttpPost("{id}/resend")]
-    public async Task<ActionResult<Invitation>> ResendInvitation(Guid id)
+    public async Task<ActionResult<InvitationDto>> ResendInvitation(Guid id)
     {
-        var invitation = await _context.Invitations.FindAsync(id);
+        var invitation = await _context.Invitations
+            .Include(i => i.Workplace)
+            .FirstOrDefaultAsync(i => i.Id == id);
 
         if (invitation == null)
         {
@@ -226,7 +313,27 @@ public class InvitationsController : ControllerBase
         // TODO: Send email
         _logger.LogInformation("Resent invitation for {Email}, new token: {Token}", invitation.Email, invitation.Token);
 
-        return invitation;
+        return new InvitationDto
+        {
+            Id = invitation.Id,
+            Email = invitation.Email,
+            InvitedRoleId = invitation.InvitedRoleId,
+            WorkplaceId = invitation.WorkplaceId,
+            Token = invitation.Token,
+            ExpiresAt = invitation.ExpiresAt,
+            AcceptedAt = invitation.AcceptedAt,
+            InvitedByUserId = invitation.InvitedByUserId,
+            Status = invitation.Status,
+            CreatedAt = invitation.CreatedAt,
+            CreatedBy = invitation.CreatedBy,
+            Workplace = invitation.Workplace != null ? new WorkplaceDto
+            {
+                Id = invitation.Workplace.Id,
+                Name = invitation.Workplace.Name,
+                Code = invitation.Workplace.Code,
+                IsActive = invitation.Workplace.IsActive
+            } : null
+        };
     }
 
     private static string GenerateSecureToken()
@@ -239,6 +346,30 @@ public class InvitationsController : ControllerBase
 }
 
 // DTOs
+public class InvitationDto
+{
+    public Guid Id { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string? InvitedRoleId { get; set; }
+    public Guid? WorkplaceId { get; set; }
+    public string Token { get; set; } = string.Empty;
+    public DateTime ExpiresAt { get; set; }
+    public DateTime? AcceptedAt { get; set; }
+    public string InvitedByUserId { get; set; } = string.Empty;
+    public InvitationStatus Status { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
+    public WorkplaceDto? Workplace { get; set; }
+}
+
+public class WorkplaceDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Code { get; set; }
+    public bool IsActive { get; set; }
+}
+
 public class CreateInvitationDto
 {
     public string Email { get; set; } = string.Empty;

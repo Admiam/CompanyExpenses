@@ -16,20 +16,13 @@ public class ExpenseCategoriesController : ControllerBase
         _context = context;
     }
 
-    /// <summary>
-    /// Získá všechny aktivní kategorie výdajů
-    /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ExpenseCategory>>> GetCategories()
     {
         return await _context.ExpenseCategories
-            .Where(c => c.IsActive)
             .ToListAsync();
     }
 
-    /// <summary>
-    /// Získá kategorii podle ID
-    /// </summary>
     [HttpGet("{id}")]
     public async Task<ActionResult<ExpenseCategory>> GetCategory(Guid id)
     {
@@ -43,9 +36,6 @@ public class ExpenseCategoriesController : ControllerBase
         return category;
     }
 
-    /// <summary>
-    /// Vytvoří novou kategorii výdajů
-    /// </summary>
     [HttpPost]
     public async Task<ActionResult<ExpenseCategory>> CreateCategory(ExpenseCategory category)
     {
@@ -57,9 +47,6 @@ public class ExpenseCategoriesController : ControllerBase
         return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
     }
 
-    /// <summary>
-    /// Aktualizuje kategorii
-    /// </summary>
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateCategory(Guid id, ExpenseCategory category)
     {
@@ -86,9 +73,6 @@ public class ExpenseCategoriesController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>
-    /// Deaktivuje kategorii (soft delete)
-    /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteCategory(Guid id)
     {
@@ -98,7 +82,37 @@ public class ExpenseCategoriesController : ControllerBase
             return NotFound();
         }
 
+        _context.ExpenseCategories.Remove(category);
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpPatch("deactivate/{id}")]
+    public async Task<IActionResult> DeactivateCategory(Guid id)
+    {
+        var category = await _context.ExpenseCategories.FindAsync(id);
+        if (category == null)
+        {
+            return NotFound();
+        }
+
         category.IsActive = false;
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpPatch("activate/{id}")]
+    public async Task<IActionResult> ActivateCategory(Guid id)
+    {
+        var category = await _context.ExpenseCategories.FindAsync(id);
+        if (category == null)
+        {
+            return NotFound();
+        }
+
+        category.IsActive = true;
         await _context.SaveChangesAsync();
 
         return NoContent();

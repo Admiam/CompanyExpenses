@@ -1,6 +1,6 @@
 import { MainLayout } from "@/components/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, Filter, Download, Check, X } from "lucide-react";
+import { Plus, Filter, Download, Check, X, Edit } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -132,6 +132,15 @@ export default function ExpensesPage() {
     setDetailModalOpen(true);
   };
 
+  const handleRowClick = (expenseId: string, event: React.MouseEvent) => {
+    // Ignore clicks on buttons
+    const target = event.target as HTMLElement;
+    if (target.closest("button")) {
+      return;
+    }
+    handleShowDetail(expenseId);
+  };
+
   // Calculate stats
   const totalAmount = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const pendingExpenses = expenses.filter((exp) => exp.status === "Pending");
@@ -223,7 +232,7 @@ export default function ExpensesPage() {
                 </TableHeader>
                 <TableBody>
                   {expenses.map((expense) => (
-                    <TableRow key={expense.id} className="cursor-pointer hover:bg-muted/50">
+                    <TableRow key={expense.id} className="cursor-pointer hover:bg-muted/50" onClick={(e) => handleRowClick(expense.id, e)}>
                       <TableCell className="font-medium">{expense.description || "Bez popisu"}</TableCell>
                       <TableCell>{expense.category?.name || "N/A"}</TableCell>
                       <TableCell>{expense.workplace?.name || "N/A"}</TableCell>
@@ -258,11 +267,20 @@ export default function ExpensesPage() {
                               >
                                 <X className="h-4 w-4" />
                               </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleShowDetail(expense.id);
+                                }}
+                                className="h-8 w-8 p-0"
+                                title="Upravit"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
                             </>
                           )}
-                          <Button variant="ghost" size="sm" onClick={() => handleShowDetail(expense.id)}>
-                            Detail
-                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

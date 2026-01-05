@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace CompanyExpenses.Api.DTOs;
 
 /// <summary>
@@ -19,10 +21,17 @@ public class CreateExpenseDto
 /// </summary>
 public class ExpenseAttachmentUploadDto
 {
-    public string OriginalFileName { get; set; } = string.Empty;
-    public string DataType { get; set; } = string.Empty;
-    public string Base64Data { get; set; } = string.Empty; // Compressed image in base64
-    public long OriginalFileSize { get; set; } // Original file size before compression
+    [JsonPropertyName("fileName")]
+    public string FileName { get; set; } = string.Empty;
+
+    [JsonPropertyName("fileType")]
+    public string FileType { get; set; } = string.Empty;
+
+    [JsonPropertyName("base64Data")]
+    public string Base64Data { get; set; } = string.Empty;
+
+    [JsonPropertyName("originalFileSize")]
+    public long OriginalFileSize { get; set; }
 }
 
 /// <summary>
@@ -45,4 +54,19 @@ public class ExpenseAttachmentDto
 public class ApprovalRequest
 {
     public string? Note { get; set; }
+}
+
+public class UpdateAmountRequest
+{
+    public decimal Amount { get; set; }
+}
+
+public class UpdateCategoryRequest
+{
+    public Guid CategoryId { get; set; }
+}
+
+public class UpdateAttachmentsRequest
+{
+    public List<ExpenseAttachmentUploadDto> Attachments { get; set; } = new();
 }

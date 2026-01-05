@@ -87,6 +87,21 @@ export const expensesApi = {
   async rejectExpense(id: string, note: string): Promise<void> {
     return apiProxy.post(`/api/expenses/${id}/reject`, { note });
   },
+
+  async updateExpenseAmount(id: string, amount: number): Promise<void> {
+    return apiProxy.patch(`/api/expenses/${id}/amount`, { amount });
+  },
+
+  async updateExpenseCategory(id: string, categoryId: string): Promise<void> {
+    return apiProxy.patch(`/api/expenses/${id}/category`, { categoryId });
+  },
+
+  async updateExpenseAttachments(
+    id: string,
+    attachments: Array<{ fileName: string; fileType: string; base64Data: string; originalFileSize: number }>
+  ): Promise<void> {
+    return apiProxy.patch(`/api/expenses/${id}/attachments`, { attachments });
+  },
 };
 
 export const workplacesApi = {
@@ -209,6 +224,10 @@ export const invitationsApi = {
 export const categoriesApi = {
   async getCategories(): Promise<ExpenseCategory[]> {
     return apiProxy.get<ExpenseCategory[]>("/api/expensecategories");
+  },
+
+  async getCategoriesForWorkplace(workplaceId: string): Promise<ExpenseCategory[]> {
+    return apiProxy.get<ExpenseCategory[]>(`/api/expensecategories/workplace/${workplaceId}`);
   },
 
   async getCategory(id: string): Promise<ExpenseCategory> {

@@ -23,6 +23,29 @@ public class ExpenseCategoriesController : ControllerBase
             .ToListAsync();
     }
 
+    /// <summary>
+    /// Získá kategorie, které mají aktivní limit pro dané pracoviště
+    /// </summary>
+    [HttpGet("workplace/{workplaceId}")]
+    public async Task<ActionResult<IEnumerable<object>>> GetCategoriesForWorkplace(Guid workplaceId)
+    {
+        var categories = await _context.WorkplaceLimits
+            .Include(wl => wl.Category)
+            .Where(wl => wl.WorkplaceId == workplaceId && wl.IsActive)
+            .Select(wl => new
+            {
+                id = wl.CategoryId,
+                name = wl.Category!.Name,
+                limitAmount = wl.LimitAmount,
+                periodFrom = wl.PeriodFrom,
+                periodTo = wl.PeriodTo
+            })
+            .Distinct()
+            .ToListAsync();
+
+        return Ok(categories);
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<ExpenseCategory>> GetCategory(Guid id)
     {

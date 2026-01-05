@@ -95,6 +95,7 @@ public class ExpensesController : ControllerBase
             .Include(e => e.Category)
             .Include(e => e.Workplace)
             .Include(e => e.Approvals)
+            .Include(e => e.Attachments)
             .FirstOrDefaultAsync(e => e.Id == id);
 
         if (expense == null)
@@ -113,7 +114,7 @@ public class ExpensesController : ControllerBase
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? u.Id);
 
-        // Map to DTO with approvals
+        // Map to DTO with approvals and attachments
         var result = new
         {
             id = expense.Id,
@@ -134,6 +135,15 @@ public class ExpensesController : ControllerBase
                 ? users[expense.LastDecisionBy]
                 : expense.LastDecisionBy,
             rejectionNote = expense.RejectionNote,
+            attachments = expense.Attachments.Select(a => new
+            {
+                id = a.Id,
+                originalFileName = a.OriginalFileName,
+                dataType = a.DataType,
+                fileSize = a.FileSize,
+                base64Data = a.Base64Data,
+                uploadedAt = a.UploadedAt
+            }).ToList(),
             approvals = expense.Approvals.Select(a => new
             {
                 id = a.Id,
@@ -190,14 +200,14 @@ public class ExpensesController : ControllerBase
                     {
                         // Compress image to base64
                         var (compressedBase64, compressedSize) = await _imageCompressionService
-                            .CompressImageToBase64Async(attachmentDto.Base64Data, attachmentDto.DataType);
+                            .CompressImageToBase64Async(attachmentDto.Base64Data, attachmentDto.FileType);
 
                         var attachment = new ExpenseAttachment
                         {
                             Id = Guid.NewGuid(),
                             ExpenseId = expense.Id,
-                            OriginalFileName = attachmentDto.OriginalFileName,
-                            StoredFileName = $"{Guid.NewGuid()}{Path.GetExtension(attachmentDto.OriginalFileName)}",
+                            OriginalFileName = attachmentDto.FileName,
+                            StoredFileName = $"{Guid.NewGuid()}{Path.GetExtension(attachmentDto.FileName)}",
                             DataType = "image/jpeg", // Always JPEG after compression
                             FileSize = compressedSize,
                             Base64Data = compressedBase64,
@@ -209,7 +219,7 @@ public class ExpensesController : ControllerBase
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to compress attachment: {FileName}", attachmentDto.OriginalFileName);
+                        _logger.LogError(ex, "Failed to compress attachment: {FileName}", attachmentDto.FileName);
                         // Continue with other attachments
                     }
                 }
@@ -236,6 +246,128 @@ public class ExpensesController : ControllerBase
             _logger.LogError(ex, "Failed to create expense");
             return StatusCode(500, new { message = "Failed to create expense" });
         }
+    }
+
+    /// <summary>
+    /// Aktualizuje částku výdaje (pouze pro Pending výdaje)
+    /// </summary>
+    [HttpPatch("{id}/amount")]
+    public async Task<IActionResult> UpdateExpenseAmount(Guid id, [FromBody] UpdateAmountRequest request)
+    {
+        var expense = await _context.Expenses.FindAsync(id);
+        if (expense == null)
+        {
+            return NotFound();
+        }
+
+        // Allow updating only for pending expenses
+        if (expense.Status != ExpenseStatus.Pending)
+        {
+            return BadRequest(new { message = "Lze upravit pouze výdaje čekající na schválení" });
+        }
+
+        expense.Amount = request.Amount;
+        expense.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Částka byla úspěšně aktualizována" });
+    }
+
+    /// <summary>
+    /// Aktualizuje kategorii výdaje (pouze pro Pending výdaje)
+    /// </summary>
+    [HttpPatch("{id}/category")]
+    public async Task<IActionResult> UpdateExpenseCategory(Guid id, [FromBody] UpdateCategoryRequest request)
+    {
+        var expense = await _context.Expenses
+            .Include(e => e.Workplace)
+            .FirstOrDefaultAsync(e => e.Id == id);
+
+        if (expense == null)
+        {
+            return NotFound();
+        }
+
+        // Allow updating only for pending expenses
+        if (expense.Status != ExpenseStatus.Pending)
+        {
+            return BadRequest(new { message = "Lze upravit pouze výdaje čekající na schválení" });
+        }
+
+        // Verify that category has an active limit for this workplace
+        var hasLimit = await _context.WorkplaceLimits
+            .AnyAsync(wl => wl.WorkplaceId == expense.WorkplaceId
+                         && wl.CategoryId == request.CategoryId
+                         && wl.IsActive);
+
+        if (!hasLimit)
+        {
+            return BadRequest(new { message = "Vybraná kategorie nemá aktivní limit pro toto pracoviště" });
+        }
+
+        expense.CategoryId = request.CategoryId;
+        expense.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Kategorie byla úspěšně aktualizována" });
+    }
+
+    /// <summary>
+    /// Aktualizuje přílohy výdaje (pouze pro Pending výdaje)
+    /// </summary>
+    [HttpPatch("{id}/attachments")]
+    public async Task<IActionResult> UpdateExpenseAttachments(Guid id, [FromBody] UpdateAttachmentsRequest request)
+    {
+        var expense = await _context.Expenses
+            .Include(e => e.Attachments)
+            .FirstOrDefaultAsync(e => e.Id == id);
+
+        if (expense == null)
+        {
+            return NotFound();
+        }
+
+        // Allow updating only for pending expenses
+        if (expense.Status != ExpenseStatus.Pending)
+        {
+            return BadRequest(new { message = "Lze upravit pouze výdaje čekající na schválení" });
+        }
+
+        // Remove old attachments
+        _context.ExpenseAttachments.RemoveRange(expense.Attachments);
+
+        // Add new attachments
+        if (request.Attachments != null && request.Attachments.Count > 0)
+        {
+            foreach (var attachmentDto in request.Attachments)
+            {
+                // Compress image
+                var (compressedBase64, compressedSize) = await _imageCompressionService.CompressImageToBase64Async(
+                    attachmentDto.Base64Data,
+                    attachmentDto.FileType
+                );
+
+                var attachment = new ExpenseAttachment
+                {
+                    Id = Guid.NewGuid(),
+                    ExpenseId = id,
+                    OriginalFileName = attachmentDto.FileName,
+                    DataType = "image/jpeg", // Always JPEG after compression
+                    FileSize = compressedSize,
+                    Base64Data = compressedBase64,
+                    UploadedAt = DateTime.UtcNow
+                };
+
+                _context.ExpenseAttachments.Add(attachment);
+            }
+        }
+
+        expense.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Přílohy byly úspěšně aktualizovány" });
     }
 
     /// <summary>

@@ -204,6 +204,32 @@ export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDet
     setExistingAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
   };
 
+  const handleDownloadAttachment = (attachment: ExpenseAttachment) => {
+    try {
+      // Convert base64 to blob
+      const byteCharacters = atob(attachment.base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: attachment.dataType });
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = attachment.originalFileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to download attachment:", error);
+      alert("Nepodařilo se stáhnout přílohu");
+    }
+  };
+
   const handleSaveAttachments = async () => {
     if (!expense || !expenseId) return;
 
@@ -513,7 +539,7 @@ export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDet
                               src={`data:${attachment.dataType};base64,${attachment.base64Data}`}
                               alt={attachment.originalFileName}
                               className="w-full h-32 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
-                              onClick={() => window.open(`data:${attachment.dataType};base64,${attachment.base64Data}`, "_blank")}
+                              onClick={() => handleDownloadAttachment(attachment)}
                             />
                             <p className="text-xs text-muted-foreground truncate">{attachment.originalFileName}</p>
                             <p className="text-xs text-muted-foreground">{(attachment.fileSize / 1024).toFixed(1)} KB</p>

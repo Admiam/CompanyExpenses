@@ -150,12 +150,12 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
           </form>
         </DialogContent>
       </Dialog>
-      <DialogFooter>
+      {/* <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
           Zrušit
         </Button>
         <Button type="submit">Odeslat pozvánku</Button>
-      </DialogFooter>
+      </DialogFooter> */}
     </div>
   );
 }

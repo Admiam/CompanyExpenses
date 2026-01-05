@@ -27,6 +27,8 @@ import type {
   CreateWorkplaceLimitRequest,
   UpdateWorkplaceLimitRequest,
   Role,
+  UserWithStats,
+  UserDetail,
 } from "./types";
 
 export const authApi = {
@@ -161,6 +163,14 @@ export const workplaceMembersApi = {
     return apiProxy.get<WorkplaceMember[]>("/api/workplacemembers");
   },
 
+  async getUsersWithStats(): Promise<UserWithStats[]> {
+    return apiProxy.get<UserWithStats[]>("/api/workplacemembers/users-with-stats");
+  },
+
+  async getUserDetail(userId: string): Promise<UserDetail> {
+    return apiProxy.get<UserDetail>(`/api/workplacemembers/user/${userId}/detail`);
+  },
+
   async getWorkplaceMembers(workplaceId: string): Promise<WorkplaceMember[]> {
     return apiProxy.get<WorkplaceMember[]>(`/api/workplacemembers/workplace/${workplaceId}`);
   },
@@ -187,6 +197,10 @@ export const workplaceMembersApi = {
 
   async toggleManager(id: string, isManager: boolean): Promise<{ message: string }> {
     return apiProxy.patch<{ message: string }>(`/api/workplacemembers/${id}/manager`, isManager);
+  },
+
+  async deleteUser(userId: string): Promise<{ message: string }> {
+    return apiProxy.delete<{ message: string }>(`/api/workplacemembers/user/${userId}`);
   },
 };
 

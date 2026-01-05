@@ -6,68 +6,41 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { invitationsApi } from "@/lib/proxy/api";
+import { invitationsApi, workplaceMembersApi } from "@/lib/proxy/api";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { UserInviteModal } from "@/components/modals/UserInviteModal";
+import { UserDetailModal } from "@/components/modals/UserDetailModal";
 import { InvitationStatus, roleLabels, roleColors } from "@/constants";
-import type { Invitation } from "@/lib/proxy/types";
+import type { Invitation, UserWithStats } from "@/lib/proxy/types";
 import { getInvitationStatusLabel, getInvitationStatusIcon } from "@/utils";
 
-interface UserType {
-  id: string;
-  name: string;
-  email: string;
-  role: "admin" | "manager" | "employee";
-  workplace: string;
-  status: string;
-  expenseCount: number;
-  totalExpenses: number;
-}
-
-// Mock data
-const mockUsers: UserType[] = [
-  {
-    id: "1",
-    name: "Jan Novák",
-    email: "jan.novak@firma.cz",
-    role: "admin",
-    workplace: "Praha - Centrála",
-    status: "active",
-    expenseCount: 12,
-    totalExpenses: 45000,
-  },
-  {
-    id: "2",
-    name: "Marie Svobodová",
-    email: "marie.svobodova@firma.cz",
-    role: "manager",
-    workplace: "Brno - Pobočka",
-    status: "active",
-    expenseCount: 8,
-    totalExpenses: 28000,
-  },
-  {
-    id: "3",
-    name: "Petr Dvořák",
-    email: "petr.dvorak@firma.cz",
-    role: "employee",
-    workplace: "Praha - Centrála",
-    status: "active",
-    expenseCount: 5,
-    totalExpenses: 12500,
-  },
-];
-
 export default function UsersPage() {
+  const [users, setUsers] = useState<UserWithStats[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUsersLoading, setIsUsersLoading] = useState(true);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadInvitations();
+    loadUsers();
   }, []);
+
+  const loadUsers = async () => {
+    try {
+      setIsUsersLoading(true);
+      const data = await workplaceMembersApi.getUsersWithStats();
+      setUsers(data);
+    } catch (error) {
+      console.error("Failed to load users:", error);
+      toast.error("Failed to load users");
+    } finally {
+      setIsUsersLoading(false);
+    }
+  };
 
   const loadInvitations = async () => {
     try {
@@ -108,6 +81,16 @@ export default function UsersPage() {
     setIsInviteModalOpen(false);
     loadInvitations();
   };
+
+  const handleRowClick = (userId: string) => {
+    setSelectedUserId(userId);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleUserDeleted = () => {
+    loadUsers();
+  };
+
   return (
     <MainLayout>
       <div className="flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6 lg:px-6">
@@ -131,7 +114,7 @@ export default function UsersPage() {
               <User className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockUsers.length}</div>
+              <div className="text-2xl font-bold">{users.length}</div>
             </CardContent>
           </Card>
           <Card>
@@ -140,7 +123,7 @@ export default function UsersPage() {
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockUsers.filter((u) => u.role === "admin").length}</div>
+              <div className="text-2xl font-bold">{users.filter((u) => u.role === "admin").length}</div>
             </CardContent>
           </Card>
           <Card>
@@ -149,7 +132,7 @@ export default function UsersPage() {
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockUsers.filter((u) => u.role === "manager").length}</div>
+              <div className="text-2xl font-bold">{users.filter((u) => u.role === "manager").length}</div>
             </CardContent>
           </Card>
           <Card>
@@ -185,53 +168,61 @@ export default function UsersPage() {
                 <CardDescription>Přehled všech aktivních uživatelů v systému</CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Uživatel</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Pracoviště</TableHead>
-                      <TableHead className="text-right">Počet výdajů</TableHead>
-                      <TableHead className="text-right">Celkem výdajů</TableHead>
-                      <TableHead className="text-right">Akce</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockUsers.map((user) => (
-                      <TableRow key={user.id} className="cursor-pointer hover:bg-muted/50">
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback>
-                                {user.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-medium">{user.name}</div>
-                              <div className="text-sm text-muted-foreground">{user.email}</div>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className={roleColors[user.role as keyof typeof roleColors]}>
-                            {roleLabels[user.role as keyof typeof roleLabels]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{user.workplace}</TableCell>
-                        <TableCell className="text-right">{user.expenseCount}</TableCell>
-                        <TableCell className="text-right">{user.totalExpenses.toLocaleString("cs-CZ")} Kč</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">
-                            Detail
-                          </Button>
-                        </TableCell>
+                {isUsersLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : users.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">Žádní uživatelé nenalezeni</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Uživatel</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Pracoviště</TableHead>
+                        <TableHead className="text-right">Počet výdajů</TableHead>
+                        <TableHead className="text-right">Celkem výdajů</TableHead>
+                        <TableHead className="text-right">Akce</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => (
+                        <TableRow key={user.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleRowClick(user.id)}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback>
+                                  {user.name
+                                    ?.split(" ")
+                                    .map((n) => n[0])
+                                    .join("") || user.email.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium">{user.name || user.email}</div>
+                                <div className="text-sm text-muted-foreground">{user.email}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className={roleColors[user.role as keyof typeof roleColors]}>
+                              {roleLabels[user.role as keyof typeof roleLabels]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{user.workplace}</TableCell>
+                          <TableCell className="text-right">{user.expenseCount}</TableCell>
+                          <TableCell className="text-right">{user.totalExpenses.toLocaleString("cs-CZ")} Kč</TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm" onClick={() => handleRowClick(user.id)}>
+                              Detail
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -301,6 +292,7 @@ export default function UsersPage() {
         </Tabs>
 
         <UserInviteModal open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen} onSuccess={handleInvitationCreated} />
+        <UserDetailModal open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen} userId={selectedUserId} onUserDeleted={handleUserDeleted} />
       </div>
     </MainLayout>
   );

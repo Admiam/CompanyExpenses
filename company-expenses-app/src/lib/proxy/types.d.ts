@@ -165,6 +165,97 @@ export interface UpdateWorkplaceMemberRequest {
   isManager: boolean;
 }
 
+// User with statistics
+export interface UserWithStats {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "manager" | "employee";
+  workplace: string;
+  workplaceId?: string;
+  status: string;
+  expenseCount: number;
+  totalExpenses: number;
+}
+
+// User detail types
+export interface UserMembership {
+  id: string;
+  workplaceId: string;
+  workplaceName: string;
+  positionName?: string;
+  isManager: boolean;
+  joinedAt: string;
+}
+
+export interface UserExpense {
+  id: string;
+  amount: number;
+  currency: string;
+  expenseDate: string;
+  description?: string;
+  status: string;
+  categoryName: string;
+  workplaceName: string;
+  submittedAt: string;
+}
+
+export interface UserApproval {
+  id: string;
+  expenseId: string;
+  action: string;
+  note?: string;
+  createdAt: string;
+  expenseAmount: number;
+  expenseCurrency: string;
+  expenseDescription?: string;
+  categoryName: string;
+}
+
+export interface UserInvitation {
+  id: string;
+  email: string;
+  workplaceName?: string;
+  status: string;
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt?: string;
+}
+
+export interface ExpenseStatusStat {
+  status: string;
+  count: number;
+  total: number;
+}
+
+export interface UserDetail {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  memberships: UserMembership[];
+  expenses: UserExpense[];
+  expenseStats: {
+    total: number;
+    count: number;
+    byStatus: ExpenseStatusStat[];
+  };
+  approvals: UserApproval[];
+  approvalStats: {
+    count: number;
+    approved: number;
+    rejected: number;
+  };
+  invitations: UserInvitation[];
+  invitationStats: {
+    count: number;
+    pending: number;
+    accepted: number;
+    expired: number;
+  };
+}
+
 // Invitation types
 import type { InvitationStatusType } from "@/constants/invitation";
 

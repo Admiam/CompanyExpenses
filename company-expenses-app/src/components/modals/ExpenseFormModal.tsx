@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ interface ExpenseFormModalProps {
 }
 
 export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: ExpenseFormModalProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const userIsAdmin = isAdmin(user?.role);
 
@@ -259,21 +261,21 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
       <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-hidden flex flex-col p-0">
         <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
           <DialogHeader className="px-6 pt-6 flex-shrink-0">
-            <DialogTitle>{expense ? "Upravit výdaj" : "Nový výdaj"}</DialogTitle>
-            <DialogDescription>{expense ? "Upravte údaje výdaje" : "Vytvořte nový výdaj"}</DialogDescription>
+            <DialogTitle>{expense ? t("expenses.editExpense") : t("expenses.newExpense")}</DialogTitle>
+            <DialogDescription>{expense ? t("expenses.editExpense") : t("expenses.newExpense")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4 px-6 overflow-y-auto flex-1">
             {/* Scrollable content area */}
             <div className="grid gap-2">
               <Label htmlFor="description">
-                Popis výdaje <span className="text-red-500">*</span>
+                {t("common.description")} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="např. Tankování služebního vozu"
+                placeholder={t("common.description")}
                 required
               />
             </div>
@@ -281,7 +283,7 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="amount">
-                  Částka (Kč) <span className="text-red-500">*</span>
+                  {t("common.amount")} ({t("common.currency")}) <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="amount"
@@ -296,7 +298,7 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="date">Datum</Label>
+                <Label htmlFor="date">{t("expenses.expenseDate")}</Label>
                 <Input
                   id="date"
                   type="date"
@@ -311,11 +313,11 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="category">
-                    Kategorie <span className="text-red-500">*</span>
+                    {t("expenses.category")} <span className="text-red-500">*</span>
                   </Label>
                   <Select value={formData.categoryId} onValueChange={(value) => setFormData({ ...formData, categoryId: value })} required>
                     <SelectTrigger id="category">
-                      <SelectValue placeholder="Vyberte kategorii" />
+                      <SelectValue placeholder={t("invitations.selectWorkplace")} />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((cat) => (
@@ -329,11 +331,11 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
 
                 <div className="grid gap-2">
                   <Label htmlFor="workplace">
-                    Pracoviště <span className="text-red-500">*</span>
+                    {t("expenses.workplace")} <span className="text-red-500">*</span>
                   </Label>
                   <Select value={formData.workplaceId} onValueChange={(value) => setFormData({ ...formData, workplaceId: value })} required>
                     <SelectTrigger id="workplace">
-                      <SelectValue placeholder="Vyberte pracoviště" />
+                      <SelectValue placeholder={t("invitations.selectWorkplace")} />
                     </SelectTrigger>
                     <SelectContent>
                       {workplaces.map((wp) => (
@@ -348,11 +350,11 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
             ) : (
               <div className="grid gap-2">
                 <Label htmlFor="category">
-                  Kategorie <span className="text-red-500">*</span>
+                  {t("expenses.category")} <span className="text-red-500">*</span>
                 </Label>
                 <Select value={formData.categoryId} onValueChange={(value) => setFormData({ ...formData, categoryId: value })} required>
                   <SelectTrigger id="category">
-                    <SelectValue placeholder="Vyberte kategorii" />
+                    <SelectValue placeholder={t("invitations.selectWorkplace")} />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
@@ -367,7 +369,7 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
 
             {/* File Upload Section */}
             <div className="grid gap-2">
-              <Label htmlFor="receipt">Účtenky / Doklady</Label>
+              <Label htmlFor="receipt">{t("expenses.attachments")}</Label>
 
               <div className="space-y-3">
                 {/* Existing attachments */}
@@ -415,8 +417,8 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors">
                   <label htmlFor="receipt" className="cursor-pointer flex flex-col items-center gap-2">
                     <Upload className="h-6 w-6 text-gray-400" />
-                    <span className="text-sm text-gray-600">{selectedFiles.length > 0 ? "Přidat další obrázky" : "Klikněte pro nahrání obrázků"}</span>
-                    <span className="text-xs text-gray-500">PNG, JPG, GIF (max. 10 MB, lze vybrat více)</span>
+                    <span className="text-sm text-gray-600">{selectedFiles.length > 0 ? t("expenses.addAttachment") : t("expenses.dropFilesHere")}</span>
+                    <span className="text-xs text-gray-500">{t("expenses.maxFileSize")}</span>
                   </label>
                   <input id="receipt" type="file" multiple className="hidden" accept="image/jpeg,image/jpg,image/png,image/gif" onChange={handleFileSelect} />
                 </div>
@@ -427,9 +429,9 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
 
           <DialogFooter className="flex-shrink-0 px-6 pb-6 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Zrušit
+              {t("common.cancel")}
             </Button>
-            <Button type="submit">{expense ? "Uložit změny" : "Vytvořit výdaj"}</Button>
+            <Button type="submit">{expense ? t("common.save") : t("common.create")}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

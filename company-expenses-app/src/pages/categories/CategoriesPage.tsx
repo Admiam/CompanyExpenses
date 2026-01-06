@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { MainLayout } from "@/components/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Loader2, Eye, EyeOff } from "lucide-react";
@@ -12,6 +13,7 @@ import type { ExpenseCategory } from "@/lib/proxy/types";
 import { toast } from "sonner";
 
 export default function CategoriesPage() {
+  const { t } = useTranslation();
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [activeCategories, setActiveCategories] = useState<ExpenseCategory[]>([]);
   const [inactiveCategories, setInactiveCategories] = useState<ExpenseCategory[]>([]);
@@ -88,13 +90,13 @@ export default function CategoriesPage() {
 
     try {
       await categoriesApi.deleteCategory(categoryToDelete.id);
-      toast.success("Kategorie byla smazána");
+      toast.success(t("categories.deleteSuccess"));
       setDeleteModalOpen(false);
       setCategoryToDelete(null);
       loadCategories();
     } catch (error: any) {
       console.error("Failed to delete category:", error);
-      toast.error(error?.response?.data?.message || "Nepodařilo se smazat kategorii");
+      toast.error(error?.response?.data?.message || t("categories.deleteError"));
     }
   };
 
@@ -133,19 +135,19 @@ export default function CategoriesPage() {
       <div className="flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6 lg:px-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Expense Categories</h1>
-            <p className="text-muted-foreground">Manage categories for expense tracking</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t("categories.title")}</h1>
+            <p className="text-muted-foreground">{t("categories.subtitle")}</p>
           </div>
           <Button onClick={handleCreate}>
             <Plus className="mr-2 h-4 w-4" />
-            New Category
+            {t("categories.newCategory")}
           </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Categories</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("categories.totalCategories")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{categories.length}</div>
@@ -153,7 +155,7 @@ export default function CategoriesPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Categories</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("categories.activeCategories")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{categories.filter((c) => c.isActive).length}</div>
@@ -161,7 +163,7 @@ export default function CategoriesPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Inactive Categories</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("categories.inactiveCategories")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{categories.filter((c) => !c.isActive).length}</div>
@@ -171,7 +173,7 @@ export default function CategoriesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Categories List</CardTitle>
+            <CardTitle>{t("categories.categoriesList")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -179,7 +181,7 @@ export default function CategoriesPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : activeCategories.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">No categories found. Create your first category.</div>
+              <div className="text-center py-8 text-muted-foreground">{t("categories.noCategories")}</div>
             ) : (
               <Table>
                 <TableHeader>
@@ -199,7 +201,7 @@ export default function CategoriesPage() {
                       <TableCell className="font-medium">{category.name}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={category.isActive ? "bg-green-500/10 text-green-500" : "bg-gray-500/10 text-gray-500"}>
-                          {category.isActive ? "Active" : "Inactive"}
+                          {category.isActive ? t("common.active") : t("common.inactive")}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -236,7 +238,7 @@ export default function CategoriesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Inactive Categories</CardTitle>
+            <CardTitle>{t("categories.inactiveCategoriesList")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -244,15 +246,15 @@ export default function CategoriesPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : inactiveCategories.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">No categories found. Create your first category.</div>
+              <div className="text-center py-8 text-muted-foreground">{t("categories.noCategories")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-16">Color</TableHead>
-                    <TableHead className="w-32">Name</TableHead>
-                    <TableHead className="w-32">Status</TableHead>
-                    <TableHead className="w-32 text-right">Actions</TableHead>
+                    <TableHead className="w-16">{t("categories.color")}</TableHead>
+                    <TableHead className="w-32">{t("common.name")}</TableHead>
+                    <TableHead className="w-32">{t("common.status")}</TableHead>
+                    <TableHead className="w-32 text-right">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -264,7 +266,7 @@ export default function CategoriesPage() {
                       <TableCell className="font-medium">{category.name}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={category.isActive ? "bg-green-500/10 text-green-500" : "bg-gray-500/10 text-gray-500"}>
-                          {category.isActive ? "Active" : "Inactive"}
+                          {category.isActive ? t("common.active") : t("common.inactive")}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">

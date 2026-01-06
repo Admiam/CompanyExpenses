@@ -1,6 +1,24 @@
 import { Mail, CheckCircle, XCircle } from "lucide-react";
 import { InvitationStatus, type InvitationStatusType } from "@/constants/invitation";
 
+export const getInvitationStatusKey = (status: InvitationStatusType): string => {
+  switch (status) {
+    case InvitationStatus.Pending:
+      return "invitations.status.pending";
+    case InvitationStatus.Accepted:
+      return "invitations.status.accepted";
+    case InvitationStatus.Declined:
+      return "invitations.status.declined";
+    case InvitationStatus.Expired:
+      return "invitations.status.expired";
+    case InvitationStatus.Cancelled:
+      return "invitations.status.cancelled";
+    default:
+      return "common.unknown";
+  }
+};
+
+// Legacy function - returns untranslated labels
 export const getInvitationStatusLabel = (status: InvitationStatusType): string => {
   switch (status) {
     case InvitationStatus.Pending:

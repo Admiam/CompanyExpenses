@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,10 +58,13 @@ const statusColors = {
   Rejected: "bg-red-500/10 text-red-500",
 };
 
-const statusLabels = {
-  Pending: "Čeká na schválení",
-  Approved: "Schváleno",
-  Rejected: "Zamítnuto",
+const getStatusLabel = (status: string, t: (key: string) => string) => {
+  const labels: Record<string, string> = {
+    Pending: t("expenses.status.pending"),
+    Approved: t("expenses.status.approved"),
+    Rejected: t("expenses.status.rejected"),
+  };
+  return labels[status] || status;
 };
 
 const actionColors = {
@@ -69,13 +73,17 @@ const actionColors = {
   ReturnedForRevision: "text-orange-600",
 };
 
-const actionLabels = {
-  Approved: "Schváleno",
-  Rejected: "Zamítnuto",
-  ReturnedForRevision: "Vráceno k revizi",
+const getActionLabel = (action: string, t: (key: string) => string) => {
+  const labels: Record<string, string> = {
+    Approved: t("expenses.status.approved"),
+    Rejected: t("expenses.status.rejected"),
+    ReturnedForRevision: t("common.edit"),
+  };
+  return labels[action] || action;
 };
 
 export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDetailModalProps) {
+  const { t } = useTranslation();
   const [expense, setExpense] = useState<ExpenseDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isEditingAmount, setIsEditingAmount] = useState(false);
@@ -301,13 +309,13 @@ export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDet
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detail výdaje</DialogTitle>
-          <DialogDescription>Kompletní informace o výdaji včetně historie schvalování</DialogDescription>
+          <DialogTitle>{t("expenses.expenseDetail")}</DialogTitle>
+          <DialogDescription>{t("expenses.expenseListDesc")}</DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <p className="text-muted-foreground">Načítání...</p>
+            <p className="text-muted-foreground">{t("common.loading")}</p>
           </div>
         ) : expense ? (
           <div className="space-y-6">
@@ -315,20 +323,20 @@ export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDet
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Základní informace</CardTitle>
+                  <CardTitle className="text-lg">{t("expenses.expenseDetail")}</CardTitle>
                   <Badge variant="secondary" className={statusColors[expense.status]}>
-                    {statusLabels[expense.status]}
+                    {getStatusLabel(expense.status, t)}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Popis</p>
+                    <p className="text-sm text-muted-foreground">{t("common.description")}</p>
                     <p className="font-medium">{expense.description}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Částka</p>
+                    <p className="text-sm text-muted-foreground mb-1">{t("common.amount")}</p>
                     {isEditingAmount ? (
                       <div className="flex items-center gap-2">
                         <Input type="number" value={editedAmount} onChange={(e) => setEditedAmount(e.target.value)} className="w-32" step="0.01" min="0" />
@@ -354,12 +362,12 @@ export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDet
                     )}
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Kategorie</p>
+                    <p className="text-sm text-muted-foreground mb-1">{t("expenses.category")}</p>
                     {isEditingCategory ? (
                       <div className="flex items-center gap-2">
                         <Select value={editedCategoryId} onValueChange={setEditedCategoryId}>
                           <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Vyberte kategorii" />
+                            <SelectValue placeholder={t("invitations.selectWorkplace")} />
                           </SelectTrigger>
                           <SelectContent>
                             {availableCategories.map((category) => (
@@ -388,18 +396,18 @@ export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDet
                     )}
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Pracoviště</p>
+                    <p className="text-sm text-muted-foreground">{t("expenses.workplace")}</p>
                     <p className="font-medium">{expense.workplace?.name || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Datum výdaje</p>
+                    <p className="text-sm text-muted-foreground">{t("expenses.expenseDate")}</p>
                     <p className="font-medium flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
                       {new Date(expense.expenseDate).toLocaleDateString("cs-CZ")}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Datum podání</p>
+                    <p className="text-sm text-muted-foreground">{t("expenses.submittedAt")}</p>
                     <p className="font-medium flex items-center gap-1">
                       <Clock className="h-4 w-4" />
                       {new Date(expense.submittedAt).toLocaleDateString("cs-CZ")}
@@ -450,11 +458,13 @@ export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDet
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Přílohy ({expense.attachments?.length || 0})</CardTitle>
+                  <CardTitle className="text-lg">
+                    {t("expenses.attachments")} ({expense.attachments?.length || 0})
+                  </CardTitle>
                   {expense.status === "Pending" && !isEditingAttachments && (
                     <Button size="sm" variant="outline" onClick={handleEditAttachments} className="h-8">
                       <Edit2 className="h-4 w-4 mr-1" />
-                      Upravit
+                      {t("common.edit")}
                     </Button>
                   )}
                 </div>
@@ -521,11 +531,11 @@ export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDet
                     <div className="flex gap-2 justify-end">
                       <Button size="sm" variant="outline" onClick={handleCancelAttachmentsEdit} disabled={isSaving}>
                         <X className="h-4 w-4 mr-1" />
-                        Zrušit
+                        {t("common.cancel")}
                       </Button>
                       <Button size="sm" onClick={handleSaveAttachments} disabled={isSaving}>
                         <Save className="h-4 w-4 mr-1" />
-                        Uložit
+                        {t("common.save")}
                       </Button>
                     </div>
                   </div>
@@ -549,7 +559,7 @@ export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDet
                     ) : (
                       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                         <ImageIcon className="h-12 w-12 mb-2 opacity-20" />
-                        <p className="text-sm">Žádné přílohy</p>
+                        <p className="text-sm">{t("expenses.noAttachments")}</p>
                       </div>
                     )}
                   </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ const invitationStatusLabels = {
 };
 
 export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: UserDetailModalProps) {
+  const { t } = useTranslation();
   const { user: currentUser } = useAuth();
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -247,8 +249,8 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
-              <DialogTitle>Detail uživatele</DialogTitle>
-              <DialogDescription>Kompletní přehled aktivit a statistik uživatele</DialogDescription>
+              <DialogTitle>{t("users.title")}</DialogTitle>
+              <DialogDescription>{t("users.subtitle")}</DialogDescription>
             </div>
             {userDetail && (
               <Button
@@ -260,12 +262,12 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                 {userDetail.isActive ? (
                   <>
                     <UserX className="h-4 w-4 mr-2" />
-                    Deaktivovat
+                    {t("workplaces.deactivate")}
                   </>
                 ) : (
                   <>
                     <UserCheck className="h-4 w-4 mr-2" />
-                    Aktivovat
+                    {t("workplaces.activate")}
                   </>
                 )}
               </Button>
@@ -307,15 +309,15 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                       Registrován: {new Date(userDetail.createdAt).toLocaleDateString("cs-CZ")}
                     </div>
                     <div className="mt-4">
-                      <label className="text-sm font-medium mb-2 block">Změnit roli</label>
-                      {!canEditUser() && <p className="text-xs text-muted-foreground mb-2">Nemáte oprávnění upravovat roli tohoto uživatele</p>}
+                      <label className="text-sm font-medium mb-2 block">{t("users.role")}</label>
+                      {!canEditUser() && <p className="text-xs text-muted-foreground mb-2">{t("errors.forbidden")}</p>}
                       <Select
                         value={roles.find((r) => r.name.toLowerCase() === userDetail.role)?.id || ""}
                         onValueChange={handleRoleChange}
                         disabled={isChangingRole || !canEditUser()}
                       >
                         <SelectTrigger className="w-[200px]">
-                          <SelectValue placeholder="Vyberte roli" />
+                          <SelectValue placeholder={t("invitations.selectRole")} />
                         </SelectTrigger>
                         <SelectContent>
                           {roles
@@ -335,22 +337,22 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                     </div>
                     <div className="mt-4">
                       <div className="flex items-center justify-between mb-2">
-                        <label className="text-sm font-medium">Členství na pracovištích</label>
+                        <label className="text-sm font-medium">{t("users.workplace")}</label>
                         <Button onClick={handleSaveWorkplaces} disabled={isSavingWorkplaces || !canEditUser()} size="sm" variant="secondary">
                           {isSavingWorkplaces ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Ukládání...
+                              {t("common.loading")}
                             </>
                           ) : (
-                            "Uložit změny"
+                            t("common.save")
                           )}
                         </Button>
                       </div>
-                      {!canEditUser() && <p className="text-xs text-muted-foreground mb-2">Nemáte oprávnění upravovat členství tohoto uživatele</p>}
+                      {!canEditUser() && <p className="text-xs text-muted-foreground mb-2">{t("errors.forbidden")}</p>}
                       <div className="border rounded-md p-3 max-h-[200px] overflow-y-auto space-y-2">
                         {workplaces.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">Žádná pracoviště k dispozici</p>
+                          <p className="text-sm text-muted-foreground">{t("workplaces.noWorkplaces")}</p>
                         ) : (
                           workplaces.map((workplace) => (
                             <div key={workplace.id} className="flex items-center space-x-2">
@@ -380,7 +382,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Celkem výdajů</CardTitle>
+                  <CardTitle className="text-sm font-medium">{t("users.totalExpenses")}</CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -391,7 +393,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pracoviště</CardTitle>
+                  <CardTitle className="text-sm font-medium">{t("nav.workplaces")}</CardTitle>
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -402,7 +404,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Schválení</CardTitle>
+                  <CardTitle className="text-sm font-medium">{t("expenses.approve")}</CardTitle>
                   <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -415,7 +417,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pozvánky</CardTitle>
+                  <CardTitle className="text-sm font-medium">{t("users.invitations")}</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -650,7 +652,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
             </Tabs>
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">Nepodařilo se načíst detail uživatele</div>
+          <div className="text-center py-8 text-muted-foreground">{t("users.loadError")}</div>
         )}
       </DialogContent>
 
@@ -660,7 +662,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               {userDetail?.isActive ? <UserX className="h-5 w-5" /> : <UserCheck className="h-5 w-5" />}
-              {userDetail?.isActive ? "Deaktivovat uživatele?" : "Aktivovat uživatele?"}
+              {userDetail?.isActive ? t("workplaces.deactivate") + "?" : t("workplaces.activate") + "?"}
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               {userDetail?.isActive ? (
@@ -685,22 +687,22 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeactivating}>Zrušit</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeactivating}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeactivateUser} disabled={isDeactivating}>
               {isDeactivating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Ukládám...
+                  {t("common.loading")}
                 </>
               ) : userDetail?.isActive ? (
                 <>
                   <UserX className="h-4 w-4 mr-2" />
-                  Ano, deaktivovat
+                  {t("common.yes")}, {t("workplaces.deactivate").toLowerCase()}
                 </>
               ) : (
                 <>
                   <UserCheck className="h-4 w-4 mr-2" />
-                  Ano, aktivovat
+                  {t("common.yes")}, {t("workplaces.activate").toLowerCase()}
                 </>
               )}
             </AlertDialogAction>

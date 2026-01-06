@@ -1,7 +1,8 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, Legend } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart } from "recharts";
 import type { CategoryExpense, WorkplaceExpense } from "@/lib/proxy/types";
+import { useTranslation } from "react-i18next";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
@@ -11,23 +12,16 @@ interface ChartBarPieProps {
   workplaceData: WorkplaceExpense[];
 }
 
-const barConfig = {
-  total: {
-    label: "Výdaje",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
-
-const pieConfig = {
-  value: {
-    label: "Částka",
-  },
-} satisfies ChartConfig;
-
 const chartColors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
-const workplaceColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
 export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
+  const { t } = useTranslation();
+
+  const pieConfig = {
+    value: {
+      label: t("common.amount"),
+    },
+  } satisfies ChartConfig;
   // Get all unique categories for the stacked bar chart
   const allCategories = new Map<string, { name: string; color: string }>();
   workplaceData.forEach((workplace) => {
@@ -55,7 +49,7 @@ export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
 
   // Create dynamic bar config for categories
   const dynamicBarConfig: ChartConfig = {};
-  allCategories.forEach((category, categoryId) => {
+  allCategories.forEach((category) => {
     dynamicBarConfig[category.name] = {
       label: category.name,
       color: category.color,
@@ -74,12 +68,12 @@ export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
       {/* Bar chart - takes 2/3 width */}
       <Card className="lg:col-span-2">
         <CardHeader>
-          <CardTitle>Výdaje podle pracovišť</CardTitle>
-          <CardDescription>Top 10 pracovišť podle výdajů (schválené výdaje tento rok)</CardDescription>
+          <CardTitle>{t("charts.expensesByWorkplace")}</CardTitle>
+          <CardDescription>{t("dashboard.topWorkplaces")}</CardDescription>
         </CardHeader>
         <CardContent>
           {barData.length === 0 ? (
-            <div className="flex items-center justify-center h-[250px] text-sm text-muted-foreground">Zatím nejsou k dispozici žádná data</div>
+            <div className="flex items-center justify-center h-[250px] text-sm text-muted-foreground">{t("charts.noData")}</div>
           ) : (
             <ChartContainer config={dynamicBarConfig}>
               <BarChart data={barData}>
@@ -99,12 +93,12 @@ export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
       {/* Pie chart - takes 1/3 width */}
       <Card className="flex flex-col">
         <CardHeader>
-          <CardTitle>Výdaje podle kategorií</CardTitle>
-          <CardDescription>Všechny kategorie (schválené výdaje tento rok)</CardDescription>
+          <CardTitle>{t("charts.expensesByCategory")}</CardTitle>
+          <CardDescription>{t("dashboard.expensesByCategories")}</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 flex items-center justify-center pb-0">
           {pieData.length === 0 ? (
-            <div className="flex items-center justify-center h-[300px] text-sm text-muted-foreground w-full">Zatím nejsou k dispozici žádná data</div>
+            <div className="flex items-center justify-center h-[300px] text-sm text-muted-foreground w-full">{t("charts.noData")}</div>
           ) : (
             <ChartContainer config={pieConfig} className="mx-auto aspect-square max-h-[300px] w-full">
               <PieChart>

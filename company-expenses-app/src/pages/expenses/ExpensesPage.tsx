@@ -13,6 +13,7 @@ import type { CreateExpenseRequest } from "@/lib/proxy/types";
 import { toast } from "sonner";
 import { useAuth } from "@/auth/useAuth";
 import { isManagerOrAdmin } from "@/utils/roles";
+import { useTranslation } from "react-i18next";
 
 interface Expense {
   id: string;
@@ -35,15 +36,17 @@ const statusColors = {
   Rejected: "bg-red-500/10 text-red-500 hover:bg-red-500/20",
 };
 
-const statusLabels = {
-  Pending: "Čeká na schválení",
-  Approved: "Schváleno",
-  Rejected: "Zamítnuto",
-};
-
 export default function ExpensesPage() {
+  const { t, i18n } = useTranslation();
+  const getLocale = () => (i18n.language === "cs" ? "cs-CZ" : "en-US");
   const { user } = useAuth();
   const canApprove = isManagerOrAdmin(user?.role);
+
+  const statusLabels = {
+    Pending: t("expenses.status.pending"),
+    Approved: t("expenses.status.approved"),
+    Rejected: t("expenses.status.rejected"),
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -74,7 +77,7 @@ export default function ExpensesPage() {
       setExpenses(response);
     } catch (error) {
       console.error("Failed to load expenses:", error);
-      toast.error("Nepodařilo se načíst výdaje");
+      toast.error(t("expenses.loadError"));
     } finally {
       setIsLoading(false);
     }
@@ -94,13 +97,13 @@ export default function ExpensesPage() {
       console.log("Creating expense:", data);
       await expensesApi.createExpense(data);
 
-      toast.success("Výdaj byl úspěšně vytvořen");
+      toast.success(t("expenses.createSuccess"));
 
       setIsModalOpen(false);
       loadExpenses(); // Refresh expense list
     } catch (error) {
       console.error("Failed to create expense:", error);
-      toast.error("Nepodařilo se vytvořit výdaj");
+      toast.error(t("expenses.createError"));
     }
   };
 
@@ -114,21 +117,21 @@ export default function ExpensesPage() {
     try {
       if (action === "approve") {
         await expensesApi.approveExpense(expenseId, note);
-        toast.success("Výdaj byl úspěšně schválen");
+        toast.success(t("expenses.approveSuccess"));
       } else {
         if (!note) {
-          toast.error("Důvod zamítnutí je povinný");
+          toast.error(t("approval.rejectionReasonRequired"));
           return;
         }
         await expensesApi.rejectExpense(expenseId, note);
-        toast.success("Výdaj byl zamítnut");
+        toast.success(t("expenses.rejectSuccess"));
       }
 
       loadExpenses(); // Refresh expense list
       setApprovalModalOpen(false);
     } catch (error) {
       console.error("Failed to process approval:", error);
-      toast.error(action === "approve" ? "Nepodařilo se schválit výdaj" : "Nepodařilo se zamítnout výdaj");
+      toast.error(action === "approve" ? t("expenses.approveError") : t("expenses.rejectError"));
     }
   };
 
@@ -159,8 +162,8 @@ export default function ExpensesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Výdaje</h1>
-            <p className="text-muted-foreground">Správa a sledování výdajů</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t("expenses.title")}</h1>
+            <p className="text-muted-foreground">{t("expenses.subtitle")}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="icon">
@@ -171,7 +174,7 @@ export default function ExpensesPage() {
             </Button>
             <Button onClick={handleCreate}>
               <Plus className="mr-2 h-4 w-4" />
-              Nový výdaj
+              {t("expenses.newExpense")}
             </Button>
           </div>
         </div>
@@ -180,29 +183,35 @@ export default function ExpensesPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Celkem výdajů</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("expenses.totalExpenses")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalAmount.toLocaleString("cs-CZ")} Kč</div>
-              <p className="text-xs text-muted-foreground">{expenses.length} výdajů</p>
+              <div className="text-2xl font-bold">
+                {totalAmount.toLocaleString(getLocale())} {t("common.currency")}
+              </div>
+              <p className="text-xs text-muted-foreground">{t("expenses.expensesCount", { count: expenses.length })}</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Čeká na schválení</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("expenses.pendingAmount")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pendingAmount.toLocaleString("cs-CZ")} Kč</div>
-              <p className="text-xs text-muted-foreground">{pendingExpenses.length} výdajů</p>
+              <div className="text-2xl font-bold">
+                {pendingAmount.toLocaleString(getLocale())} {t("common.currency")}
+              </div>
+              <p className="text-xs text-muted-foreground">{t("expenses.expensesCount", { count: pendingExpenses.length })}</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Schváleno</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("expenses.approvedAmount")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{approvedAmount.toLocaleString("cs-CZ")} Kč</div>
-              <p className="text-xs text-muted-foreground">{approvedExpenses.length} výdajů</p>
+              <div className="text-2xl font-bold">
+                {approvedAmount.toLocaleString(getLocale())} {t("common.currency")}
+              </div>
+              <p className="text-xs text-muted-foreground">{t("expenses.expensesCount", { count: approvedExpenses.length })}</p>
             </CardContent>
           </Card>
         </div>
@@ -210,40 +219,40 @@ export default function ExpensesPage() {
         {/* Expenses Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Seznam výdajů</CardTitle>
-            <CardDescription>Přehled všech výdajů s možností rozkliknout detail</CardDescription>
+            <CardTitle>{t("expenses.expenseList")}</CardTitle>
+            <CardDescription>{t("expenses.expenseListDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="flex justify-center py-8">
-                <p className="text-muted-foreground">Načítání výdajů...</p>
+                <p className="text-muted-foreground">{t("expenses.loadingExpenses")}</p>
               </div>
             ) : expenses.length === 0 ? (
               <div className="flex justify-center py-8">
-                <p className="text-muted-foreground">Zatím žádné výdaje</p>
+                <p className="text-muted-foreground">{t("expenses.noExpenses")}</p>
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Popis</TableHead>
-                    <TableHead>Kategorie</TableHead>
-                    <TableHead>Pracoviště</TableHead>
-                    <TableHead>Datum</TableHead>
-                    <TableHead className="text-right">Částka</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Akce</TableHead>
+                    <TableHead>{t("common.description")}</TableHead>
+                    <TableHead>{t("expenses.category")}</TableHead>
+                    <TableHead>{t("expenses.workplace")}</TableHead>
+                    <TableHead>{t("common.date")}</TableHead>
+                    <TableHead className="text-right">{t("common.amount")}</TableHead>
+                    <TableHead>{t("common.status")}</TableHead>
+                    <TableHead className="text-right">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {expenses.map((expense) => (
                     <TableRow key={expense.id} className="cursor-pointer hover:bg-muted/50" onClick={(e) => handleRowClick(expense.id, e)}>
-                      <TableCell className="font-medium">{expense.description || "Bez popisu"}</TableCell>
+                      <TableCell className="font-medium">{expense.description || t("expenses.noDescription")}</TableCell>
                       <TableCell>{expense.category?.name || "N/A"}</TableCell>
                       <TableCell>{expense.workplace?.name || "N/A"}</TableCell>
-                      <TableCell>{new Date(expense.expenseDate).toLocaleDateString("cs-CZ")}</TableCell>
+                      <TableCell>{new Date(expense.expenseDate).toLocaleDateString(getLocale())}</TableCell>
                       <TableCell className="text-right">
-                        {expense.amount.toLocaleString("cs-CZ")} {expense.currency}
+                        {expense.amount.toLocaleString(getLocale())} {expense.currency}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={statusColors[expense.status]}>
@@ -261,7 +270,7 @@ export default function ExpensesPage() {
                                     size="sm"
                                     onClick={() => handleApprovalAction(expense, "approve")}
                                     className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                    title="Schválit"
+                                    title={t("expenses.approve")}
                                   >
                                     <Check className="h-4 w-4" />
                                   </Button>
@@ -270,7 +279,7 @@ export default function ExpensesPage() {
                                     size="sm"
                                     onClick={() => handleApprovalAction(expense, "reject")}
                                     className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    title="Zamítnout"
+                                    title={t("expenses.reject")}
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
@@ -284,7 +293,7 @@ export default function ExpensesPage() {
                                   handleShowDetail(expense.id);
                                 }}
                                 className="h-8 w-8 p-0"
-                                title="Upravit"
+                                title={t("common.edit")}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>

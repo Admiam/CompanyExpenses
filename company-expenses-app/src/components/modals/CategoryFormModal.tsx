@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ interface CategoryFormModalProps {
 }
 
 export function CategoryFormModal({ open, onOpenChange, category, onSave }: CategoryFormModalProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: "",
     color: "#3b82f6",
@@ -50,24 +52,24 @@ export function CategoryFormModal({ open, onOpenChange, category, onSave }: Cate
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{category ? "Upravit kategorii" : "Nová kategorie"}</DialogTitle>
-            <DialogDescription>{category ? "Upravte údaje kategorie výdajů" : "Vytvořte novou kategorii výdajů"}</DialogDescription>
+            <DialogTitle>{category ? t("categories.editCategory") : t("categories.newCategory")}</DialogTitle>
+            <DialogDescription>{category ? t("categories.editDescription") : t("categories.newDescription")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Název kategorie</Label>
+              <Label htmlFor="name">{t("categories.name")}</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="např. Pohonné hmoty"
+                placeholder={t("categories.namePlaceholder")}
                 required
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="color">Barva</Label>
+              <Label htmlFor="color">{t("categories.color")}</Label>
               <div className="flex gap-2 items-center">
                 <Input
                   id="color"
@@ -87,16 +89,16 @@ export function CategoryFormModal({ open, onOpenChange, category, onSave }: Cate
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="isActive">Aktivní kategorie</Label>
+              <Label htmlFor="isActive">{t("common.active")}</Label>
               <Switch id="isActive" checked={formData.isActive} onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })} />
             </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Zrušit
+              {t("common.cancel")}
             </Button>
-            <Button type="submit">{category ? "Uložit změny" : "Vytvořit"}</Button>
+            <Button type="submit">{category ? t("common.save") : t("common.create")}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

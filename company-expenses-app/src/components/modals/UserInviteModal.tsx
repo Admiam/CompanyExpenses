@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ interface UserInviteModalProps {
 }
 
 export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteModalProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     email: "",
     invitedRoleId: "",
@@ -45,7 +47,7 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
       setRoles(rolesData);
     } catch (error) {
       console.error("Failed to load data:", error);
-      toast.error("Failed to load data");
+      toast.error(t("common.loadError"));
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +58,7 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
 
     // Validate required fields
     if (!formData.email || !formData.invitedRoleId || !formData.workplaceId) {
-      toast.error("Please fill in all required fields");
+      toast.error(t("invitations.fillRequired"));
       return;
     }
 
@@ -68,12 +70,12 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
         workplaceId: formData.workplaceId,
       });
 
-      toast.success("Invitation sent successfully");
+      toast.success(t("invitations.sendSuccess"));
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
       console.error("Failed to send invitation:", error);
-      toast.error(error?.response?.data?.message || "Failed to send invitation");
+      toast.error(error?.response?.data?.message || t("invitations.sendError"));
     } finally {
       setIsSending(false);
     }
@@ -85,14 +87,14 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
         <DialogContent className="sm:max-w-[425px]">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>Invite User</DialogTitle>
-              <DialogDescription>Send an invitation to a new user</DialogDescription>
+              <DialogTitle>{t("invitations.title")}</DialogTitle>
+              <DialogDescription>{t("invitations.subtitle")}</DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="email">
-                  Email <span className="text-red-500">*</span>
+                  {t("invitations.email")} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="email"
@@ -107,7 +109,7 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
 
               <div className="grid gap-2">
                 <Label htmlFor="role">
-                  Role <span className="text-red-500">*</span>
+                  {t("invitations.role")} <span className="text-red-500">*</span>
                 </Label>
                 <Select
                   value={formData.invitedRoleId}
@@ -116,7 +118,7 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
                   required
                 >
                   <SelectTrigger id="role">
-                    <SelectValue placeholder={isLoading ? "Loading..." : "Select role"} />
+                    <SelectValue placeholder={isLoading ? t("common.loading") : t("invitations.selectRole")} />
                   </SelectTrigger>
                   <SelectContent>
                     {roles.map((role) => (
@@ -130,7 +132,7 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
 
               <div className="grid gap-2">
                 <Label htmlFor="workplace">
-                  Workplace <span className="text-red-500">*</span>
+                  {t("invitations.workplace")} <span className="text-red-500">*</span>
                 </Label>
                 <Select
                   value={formData.workplaceId}
@@ -139,7 +141,7 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
                   required
                 >
                   <SelectTrigger id="workplace">
-                    <SelectValue placeholder={isLoading ? "Loading..." : "Select workplace"} />
+                    <SelectValue placeholder={isLoading ? t("common.loading") : t("invitations.selectWorkplace")} />
                   </SelectTrigger>
                   <SelectContent>
                     {workplaces.map((wp) => (
@@ -154,11 +156,11 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSending}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={isSending || !formData.email || !formData.invitedRoleId || !formData.workplaceId}>
                 {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Send Invitation
+                {t("invitations.send")}
               </Button>
             </DialogFooter>
           </form>

@@ -1,6 +1,7 @@
 "use client";
 
 import { IconDotsVertical, IconLogout, IconUserCircle } from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -28,6 +29,7 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar();
   const { logout } = useAuth();
+  const { t } = useTranslation();
 
   // --- Handlers ---
   const handleAccount = () => {
@@ -78,13 +80,13 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={handleAccount}>
                 <IconUserCircle />
-                User Settings
+                {t("user.settings")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <IconLogout />
-              Log out
+              {t("user.logout")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ interface ApprovalModalProps {
 }
 
 export function ApprovalModal({ open, onOpenChange, expense, action, onConfirm }: ApprovalModalProps) {
+  const { t } = useTranslation();
   const [note, setNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -57,29 +59,27 @@ export function ApprovalModal({ open, onOpenChange, expense, action, onConfirm }
             {isApprove ? (
               <>
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
-                Schválit výdaj
+                {t("approval.approveTitle")}
               </>
             ) : (
               <>
                 <XCircle className="h-5 w-5 text-red-600" />
-                Zamítnout výdaj
+                {t("approval.rejectTitle")}
               </>
             )}
           </DialogTitle>
-          <DialogDescription>
-            {isApprove ? "Opravdu chcete schválit tento výdaj?" : "Opravdu chcete zamítnout tento výdaj? Vyžaduje se důvod zamítnutí."}
-          </DialogDescription>
+          <DialogDescription>{isApprove ? t("approval.approveConfirm") : t("approval.rejectConfirm")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Expense details */}
           <div className="rounded-lg border p-4 space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Popis:</span>
+              <span className="text-sm text-muted-foreground">{t("common.description")}:</span>
               <span className="text-sm font-medium">{expense.description}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Částka:</span>
+              <span className="text-sm text-muted-foreground">{t("common.amount")}:</span>
               <span className="text-sm font-medium">
                 {expense.amount.toLocaleString("cs-CZ")} {expense.currency}
               </span>
@@ -88,25 +88,25 @@ export function ApprovalModal({ open, onOpenChange, expense, action, onConfirm }
 
           {/* Note input */}
           <div className="space-y-2">
-            <Label htmlFor="note">{isApprove ? "Poznámka (nepovinná)" : "Důvod zamítnutí *"}</Label>
+            <Label htmlFor="note">{isApprove ? t("approval.noteOptional") : t("approval.rejectionReason")}</Label>
             <Textarea
               id="note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder={isApprove ? "Přidejte poznámku ke schválení..." : "Uveďte důvod zamítnutí výdaje..."}
+              placeholder={isApprove ? t("approval.notePlaceholder") : t("approval.rejectionPlaceholder")}
               rows={4}
               required={!isApprove}
             />
-            {!isApprove && !note.trim() && <p className="text-sm text-red-600">Důvod zamítnutí je povinný</p>}
+            {!isApprove && !note.trim() && <p className="text-sm text-red-600">{t("approval.rejectionRequired")}</p>}
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel} disabled={isSubmitting}>
-            Zrušit
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleConfirm} disabled={isSubmitting || (!isApprove && !note.trim())} variant={isApprove ? "default" : "destructive"}>
-            {isSubmitting ? "Zpracovávám..." : isApprove ? "Schválit" : "Zamítnout"}
+            {isSubmitting ? t("common.processing") : isApprove ? t("common.approve") : t("common.reject")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ interface WorkplaceFormModalProps {
 }
 
 export function WorkplaceFormModal({ open, onOpenChange, workplace, onSave }: WorkplaceFormModalProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<WorkplaceFormData>({
     name: "",
     code: "",
@@ -66,45 +68,45 @@ export function WorkplaceFormModal({ open, onOpenChange, workplace, onSave }: Wo
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{workplace ? "Edit Workplace" : "Create New Workplace"}</DialogTitle>
-            <DialogDescription>{workplace ? "Update workplace information" : "Add a new workplace to your organization"}</DialogDescription>
+            <DialogTitle>{workplace ? t("workplaces.editWorkplace") : t("workplaces.createWorkplace")}</DialogTitle>
+            <DialogDescription>{workplace ? t("workplaces.updateInfo") : t("workplaces.addNew")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="name">{t("workplaces.name")} *</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Prague - Headquarters"
+                placeholder={t("workplaces.namePlaceholder")}
                 required
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="code">Code</Label>
+              <Label htmlFor="code">{t("workplaces.code")}</Label>
               <Input
                 id="code"
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="e.g., PRG-HQ (optional)"
+                placeholder={t("workplaces.codePlaceholder")}
               />
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="isActive">Active</Label>
+              <Label htmlFor="isActive">{t("common.active")}</Label>
               <Switch id="isActive" checked={formData.isActive} onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })} />
             </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isSaving}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {workplace ? "Update" : "Create"}
+              {workplace ? t("common.update") : t("common.create")}
             </Button>
           </DialogFooter>
         </form>

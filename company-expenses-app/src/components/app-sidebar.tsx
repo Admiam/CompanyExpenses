@@ -1,5 +1,6 @@
 import * as React from "react";
 import { IconDashboard, IconUsers, IconSettings, IconCreditCard, IconBuildingSkyscraper, IconHelp, IconCategory } from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
 
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -8,7 +9,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { useAuth } from "@/auth/useAuth";
 import { canAccessWorkplaces, canAccessUsers, canAccessCategories } from "@/utils/roles";
 
-const data = {
+const getNavData = (t: (key: string) => string) => ({
   user: {
     name: "Admin User",
     email: "admin@company.com",
@@ -16,48 +17,50 @@ const data = {
   },
   navMain: [
     {
-      title: "Dashboard",
+      title: t("nav.dashboard"),
       url: "/dashboard",
       icon: IconDashboard,
     },
     {
-      title: "Výdaje",
+      title: t("nav.expenses"),
       url: "/expenses",
       icon: IconCreditCard,
     },
     {
-      title: "Pracoviště",
+      title: t("nav.workplaces"),
       url: "/workplaces",
       icon: IconBuildingSkyscraper,
     },
     {
-      title: "Uživatelé",
+      title: t("nav.users"),
       url: "/users",
       icon: IconUsers,
     },
     {
-      title: "Kategorie",
+      title: t("nav.categories"),
       url: "/categories",
       icon: IconCategory,
     },
   ],
   navSecondary: [
     {
-      title: "Nastavení",
+      title: t("nav.settings"),
       url: "/settings",
       icon: IconSettings,
     },
     {
-      title: "Nápověda",
+      title: t("nav.help"),
       url: "/help",
       icon: IconHelp,
     },
   ],
-};
+});
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const userRole = user?.role;
+  const data = getNavData(t);
 
   // Filter navigation items based on user role
   const navMainFiltered = data.navMain.filter((item) => {
@@ -81,7 +84,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
               <a href="/">
-                <span className="text-base font-semibold">Company Expenses</span>
+                <span className="text-base font-semibold">{t("app.title")}</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -94,7 +97,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter>
         <NavUser
           user={{
-            name: user?.name || "Uživatel",
+            name: user?.name || t("users.user"),
             email: user?.email || "",
             avatar: "/avatars/admin.jpg",
             role: user?.role || "User",

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { MainLayout } from "@/components/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Plus, MapPin, Users, Settings, TrendingUp, Calendar, CheckCircle, Trash2 } from "lucide-react";
@@ -21,6 +22,8 @@ interface WorkplaceWithStats extends Workplace {
 }
 
 export default function WorkplacesPage() {
+  const { t, i18n } = useTranslation();
+  const getLocale = () => (i18n.language === "cs" ? "cs-CZ" : "en-US");
   const [workplaces, setWorkplaces] = useState<WorkplaceWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -201,12 +204,12 @@ export default function WorkplacesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Workplaces</h1>
-            <p className="text-muted-foreground">Manage workplaces and their budgets</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t("workplaces.title")}</h1>
+            <p className="text-muted-foreground">{t("workplaces.subtitle")}</p>
           </div>
           <Button onClick={handleCreate}>
             <Plus className="mr-2 h-4 w-4" />
-            New Workplace
+            {t("workplaces.newWorkplace")}
           </Button>
         </div>
 
@@ -214,7 +217,7 @@ export default function WorkplacesPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Workplaces</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("workplaces.totalWorkplaces")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{workplaces.length}</div>
@@ -222,7 +225,7 @@ export default function WorkplacesPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Workplaces</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("workplaces.activeWorkplaces")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{workplaces.filter((w) => w.isActive).length}</div>
@@ -230,7 +233,7 @@ export default function WorkplacesPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Inactive Workplaces</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("workplaces.inactiveWorkplaces")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{workplaces.filter((w) => !w.isActive).length}</div>
@@ -241,9 +244,9 @@ export default function WorkplacesPage() {
         {/* Workplaces Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
-            <div className="col-span-full text-center py-8 text-muted-foreground">Loading workplaces...</div>
+            <div className="col-span-full text-center py-8 text-muted-foreground">{t("workplaces.loadingWorkplaces")}</div>
           ) : workplaces.filter((w) => w.isActive).length === 0 ? (
-            <div className="col-span-full text-center py-8 text-muted-foreground">No active workplaces</div>
+            <div className="col-span-full text-center py-8 text-muted-foreground">{t("workplaces.noActiveWorkplaces")}</div>
           ) : (
             workplaces
               .filter((w) => w.isActive)
@@ -279,31 +282,39 @@ export default function WorkplacesPage() {
                       {monthlyBudget > 0 ? (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Current Period Budget</span>
+                            <span className="text-muted-foreground">{t("workplaces.budget")}</span>
                             <span className={`${budgetColor} font-semibold`}>{budgetUsed.toFixed(1)}%</span>
                           </div>
                           <div className="w-full bg-secondary h-2.5 rounded-full overflow-hidden">
                             <div className={`h-full ${budgetBg} transition-all`} style={{ width: `${Math.min(budgetUsed, 100)}%` }} />
                           </div>
                           <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">{currentExpenses.toLocaleString("cs-CZ")} CZK</span>
-                            <span className="text-muted-foreground">{monthlyBudget.toLocaleString("cs-CZ")} CZK</span>
+                            <span className="text-muted-foreground">
+                              {currentExpenses.toLocaleString(getLocale())} {t("common.currency")}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {monthlyBudget.toLocaleString(getLocale())} {t("common.currency")}
+                            </span>
                           </div>
-                          <div className="text-xs text-muted-foreground">Remaining: {(monthlyBudget - currentExpenses).toLocaleString("cs-CZ")} CZK</div>
+                          <div className="text-xs text-muted-foreground">
+                            {(monthlyBudget - currentExpenses).toLocaleString(getLocale())} {t("common.currency")}
+                          </div>
                         </div>
                       ) : (
-                        <div className="text-center py-3 text-sm text-muted-foreground bg-muted/30 rounded-md">No budget limit set for current period</div>
+                        <div className="text-center py-3 text-sm text-muted-foreground bg-muted/30 rounded-md">{t("limits.noLimits")}</div>
                       )}
 
                       {/* Stats Row */}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-3">
                         <div className="flex items-center gap-1">
                           <TrendingUp className="h-3.5 w-3.5" />
-                          <span>{activeExpensesCount} pending</span>
+                          <span>
+                            {activeExpensesCount} {t("workplaces.pendingExpenses").toLowerCase()}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3.5 w-3.5" />
-                          <span>Since {new Date(workplace.createdAt).toLocaleDateString("cs-CZ")}</span>
+                          <span>{new Date(workplace.createdAt).toLocaleDateString(getLocale())}</span>
                         </div>
                       </div>
 
@@ -311,13 +322,13 @@ export default function WorkplacesPage() {
                       <div className="flex gap-2 pt-2">
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewDetail(workplace)}>
                           <Settings className="mr-2 h-4 w-4" />
-                          Manage Limits
+                          {t("workplaces.manageLimits")}
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(workplace)}>
-                          Edit
+                          {t("common.edit")}
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(workplace.id)} className="text-destructive hover:text-destructive">
-                          Delete
+                          {t("common.delete")}
                         </Button>
                       </div>
                     </CardContent>
@@ -331,18 +342,18 @@ export default function WorkplacesPage() {
         {workplaces.filter((w) => !w.isActive).length > 0 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight">Inactive Workplaces</h2>
-              <p className="text-muted-foreground">Deactivated workplaces that can be restored or deleted</p>
+              <h2 className="text-2xl font-bold tracking-tight">{t("workplaces.inactiveWorkplaces")}</h2>
+              <p className="text-muted-foreground">{t("workplaces.subtitle")}</p>
             </div>
             <Card>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Members</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("common.name")}</TableHead>
+                    <TableHead>{t("workplaces.code")}</TableHead>
+                    <TableHead>{t("workplaces.members")}</TableHead>
+                    <TableHead>{t("common.date")}</TableHead>
+                    <TableHead className="text-right">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -358,16 +369,16 @@ export default function WorkplacesPage() {
                             {workplace.memberCount}
                           </Badge>
                         </TableCell>
-                        <TableCell>{new Date(workplace.createdAt).toLocaleDateString("cs-CZ")}</TableCell>
+                        <TableCell>{new Date(workplace.createdAt).toLocaleDateString(getLocale())}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button variant="outline" size="sm" onClick={() => handleActivate(workplace.id)}>
                               <CheckCircle className="mr-2 h-4 w-4" />
-                              Activate
+                              {t("workplaces.activate")}
                             </Button>
                             <Button variant="destructive" size="sm" onClick={() => handleDelete(workplace.id)}>
                               <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
+                              {t("common.delete")}
                             </Button>
                           </div>
                         </TableCell>

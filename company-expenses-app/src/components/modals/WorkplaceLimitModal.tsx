@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ interface WorkplaceLimitModalProps {
 }
 
 export function WorkplaceLimitModal({ open, onOpenChange, workplaceId, workplaceName, onLimitsUpdated }: WorkplaceLimitModalProps) {
+  const { t } = useTranslation();
   const [limits, setLimits] = useState<WorkplaceLimit[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,8 +111,10 @@ export function WorkplaceLimitModal({ open, onOpenChange, workplaceId, workplace
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Budget Limits - {workplaceName}</DialogTitle>
-          <DialogDescription>Manage budget limits for this workplace. You can set general limits or category-specific limits.</DialogDescription>
+          <DialogTitle>
+            {t("limits.title")} - {workplaceName}
+          </DialogTitle>
+          <DialogDescription>{t("workplaces.manageLimits")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -121,10 +125,10 @@ export function WorkplaceLimitModal({ open, onOpenChange, workplaceId, workplace
           ) : (
             <>
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">Current Limits</h3>
+                <h3 className="text-lg font-medium">{t("workplaces.limits")}</h3>
                 <Button size="sm" onClick={() => setIsAddingNew(!isAddingNew)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Limit
+                  {t("limits.add")}
                 </Button>
               </div>
 
@@ -132,7 +136,9 @@ export function WorkplaceLimitModal({ open, onOpenChange, workplaceId, workplace
                 <div className="border rounded-lg p-4 space-y-4 bg-muted/50">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Category (optional)</Label>
+                      <Label>
+                        {t("limits.category")} ({t("common.optional")})
+                      </Label>
                       <Select
                         value={newLimit.categoryId || "general"}
                         onValueChange={(value) => setNewLimit({ ...newLimit, categoryId: value === "general" ? "" : value })}
@@ -152,7 +158,7 @@ export function WorkplaceLimitModal({ open, onOpenChange, workplaceId, workplace
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Amount *</Label>
+                      <Label>{t("limits.amount")} *</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -166,37 +172,37 @@ export function WorkplaceLimitModal({ open, onOpenChange, workplaceId, workplace
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Period From *</Label>
+                      <Label>{t("limits.periodFrom")} *</Label>
                       <Input type="date" value={newLimit.periodFrom} onChange={(e) => setNewLimit({ ...newLimit, periodFrom: e.target.value })} required />
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Period To *</Label>
+                      <Label>{t("limits.periodTo")} *</Label>
                       <Input type="date" value={newLimit.periodTo} onChange={(e) => setNewLimit({ ...newLimit, periodTo: e.target.value })} required />
                     </div>
                   </div>
 
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" size="sm" onClick={() => setIsAddingNew(false)}>
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                     <Button size="sm" onClick={handleAddLimit}>
-                      Add Limit
+                      {t("limits.add")}
                     </Button>
                   </div>
                 </div>
               )}
 
               {limits.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">No limits set. Add your first limit to start tracking budgets.</div>
+                <div className="text-center py-8 text-muted-foreground">{t("limits.noLimits")}</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Period</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>{t("limits.category")}</TableHead>
+                      <TableHead>{t("limits.amount")}</TableHead>
+                      <TableHead>{t("common.date")}</TableHead>
+                      <TableHead className="text-right">{t("common.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

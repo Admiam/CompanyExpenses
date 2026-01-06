@@ -10,8 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, TrendingUp, Building2, Tag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useTranslation } from "react-i18next";
 
 export default function Dashboard() {
+  const { t, i18n } = useTranslation();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -26,11 +28,13 @@ export default function Dashboard() {
       setStats(data);
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
-      toast.error("Nepodařilo se načíst data dashboardu");
+      toast.error(t("dashboard.failedToLoadDashboard"));
     } finally {
       setIsLoading(false);
     }
   };
+
+  const getLocale = () => (i18n.language === "cs" ? "cs-CZ" : "en-US");
 
   if (isLoading) {
     return (
@@ -55,7 +59,7 @@ export default function Dashboard() {
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-96">
-          <p className="text-muted-foreground">Nepodařilo se načíst data</p>
+          <p className="text-muted-foreground">{t("dashboard.failedToLoad")}</p>
         </div>
       </MainLayout>
     );
@@ -79,21 +83,21 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Výdaje podle pracovišť
+                {t("dashboard.expensesByWorkplace")}
               </CardTitle>
-              <CardDescription>Celkem {stats.expensesByWorkplace.length} pracovišť s výdaji tento rok</CardDescription>
+              <CardDescription>{t("dashboard.workplacesWithExpenses", { count: stats.expensesByWorkplace.length })}</CardDescription>
             </CardHeader>
             <CardContent>
               {stats.expensesByWorkplace.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Žádná pracoviště nemají zaznamenané výdaje</p>
+                <p className="text-sm text-muted-foreground text-center py-8">{t("dashboard.noWorkplaceExpenses")}</p>
               ) : (
                 <div className="max-h-[400px] overflow-y-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Pracoviště</TableHead>
-                        <TableHead className="text-right">Počet</TableHead>
-                        <TableHead className="text-right">Celkem</TableHead>
+                        <TableHead>{t("nav.workplaces")}</TableHead>
+                        <TableHead className="text-right">{t("common.count")}</TableHead>
+                        <TableHead className="text-right">{t("common.total")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -101,7 +105,9 @@ export default function Dashboard() {
                         <TableRow key={workplace.workplaceId}>
                           <TableCell className="font-medium">{workplace.workplaceName}</TableCell>
                           <TableCell className="text-right">{workplace.count}</TableCell>
-                          <TableCell className="text-right font-semibold">{workplace.total.toLocaleString("cs-CZ")} Kč</TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {workplace.total.toLocaleString(getLocale())} {t("common.currency")}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -116,21 +122,21 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Tag className="h-5 w-5" />
-                Výdaje podle kategorií
+                {t("dashboard.expensesByCategory")}
               </CardTitle>
-              <CardDescription>Celkem {stats.expensesByCategory.length} kategorií s výdaji tento rok</CardDescription>
+              <CardDescription>{t("dashboard.categoriesWithExpenses", { count: stats.expensesByCategory.length })}</CardDescription>
             </CardHeader>
             <CardContent>
               {stats.expensesByCategory.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Žádné kategorie nemají zaznamenané výdaje</p>
+                <p className="text-sm text-muted-foreground text-center py-8">{t("dashboard.noCategoryExpenses")}</p>
               ) : (
                 <div className="max-h-[400px] overflow-y-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Kategorie</TableHead>
-                        <TableHead className="text-right">Počet</TableHead>
-                        <TableHead className="text-right">Celkem</TableHead>
+                        <TableHead>{t("expenses.category")}</TableHead>
+                        <TableHead className="text-right">{t("common.count")}</TableHead>
+                        <TableHead className="text-right">{t("common.total")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -138,7 +144,9 @@ export default function Dashboard() {
                         <TableRow key={category.categoryId}>
                           <TableCell className="font-medium">{category.categoryName}</TableCell>
                           <TableCell className="text-right">{category.count}</TableCell>
-                          <TableCell className="text-right font-semibold">{category.total.toLocaleString("cs-CZ")} Kč</TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {category.total.toLocaleString(getLocale())} {t("common.currency")}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -153,13 +161,13 @@ export default function Dashboard() {
         <div className="px-4 lg:px-6">
           <Card>
             <CardHeader>
-              <CardTitle>Poslední výdaje</CardTitle>
-              <CardDescription>Přehled posledních 10 výdajů ve všech pracovištích</CardDescription>
+              <CardTitle>{t("dashboard.recentExpenses")}</CardTitle>
+              <CardDescription>{t("dashboard.recentExpensesDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {stats.recentExpenses.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Zatím nebyly zaznamenány žádné výdaje</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">{t("dashboard.noExpensesYet")}</p>
                 ) : (
                   stats.recentExpenses.map((expense) => (
                     <div key={expense.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
@@ -167,7 +175,11 @@ export default function Dashboard() {
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{expense.description}</p>
                           <Badge variant={expense.status === "Approved" ? "default" : expense.status === "Rejected" ? "destructive" : "secondary"}>
-                            {expense.status === "Approved" ? "Schváleno" : expense.status === "Rejected" ? "Zamítnuto" : "Čeká na schválení"}
+                            {expense.status === "Approved"
+                              ? t("expenses.status.approved")
+                              : expense.status === "Rejected"
+                              ? t("expenses.status.rejected")
+                              : t("expenses.status.pending")}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
@@ -180,15 +192,15 @@ export default function Dashboard() {
                           {expense.workplaceName && <span>{expense.workplaceName}</span>}
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {new Date(expense.expenseDate).toLocaleDateString("cs-CZ")}
+                            {new Date(expense.expenseDate).toLocaleDateString(getLocale())}
                           </span>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-lg">
-                          {expense.amount.toLocaleString("cs-CZ")} {expense.currency}
+                          {expense.amount.toLocaleString(getLocale())} {expense.currency}
                         </p>
-                        <p className="text-xs text-muted-foreground">{new Date(expense.submittedAt).toLocaleDateString("cs-CZ")}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(expense.submittedAt).toLocaleDateString(getLocale())}</p>
                       </div>
                     </div>
                   ))

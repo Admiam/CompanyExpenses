@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { MainLayout } from "@/components/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Plus, Shield, User, Loader2, RotateCw, Mail, Trash2 } from "lucide-react";
@@ -16,6 +17,8 @@ import type { Invitation, UserWithStats } from "@/lib/proxy/types";
 import { getInvitationStatusLabel, getInvitationStatusIcon } from "@/utils";
 
 export default function UsersPage() {
+  const { t, i18n } = useTranslation();
+  const getLocale = () => i18n.language === "cs" ? "cs-CZ" : "en-US";
   const [users, setUsers] = useState<UserWithStats[]>([]);
   const [inactiveUsers, setInactiveUsers] = useState<UserWithStats[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -127,12 +130,12 @@ export default function UsersPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-            <p className="text-muted-foreground">User and invitation management</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t("users.title")}</h1>
+            <p className="text-muted-foreground">{t("users.subtitle")}</p>
           </div>
           <Button onClick={() => setIsInviteModalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Invite User
+            {t("users.inviteUser")}
           </Button>
         </div>
 
@@ -140,7 +143,7 @@ export default function UsersPage() {
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("users.totalUsers")}</CardTitle>
               <User className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -149,7 +152,7 @@ export default function UsersPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Administrators</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("users.administrators")}</CardTitle>
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -158,7 +161,7 @@ export default function UsersPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Managers</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("users.managers")}</CardTitle>
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -167,7 +170,7 @@ export default function UsersPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Invitations</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("users.pendingInvitations")}</CardTitle>
               <Mail className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -187,9 +190,9 @@ export default function UsersPage() {
           }}
         >
           <TabsList>
-            <TabsTrigger value="users">Aktivní uživatelé</TabsTrigger>
+            <TabsTrigger value="users">{t("users.activeUsers")}</TabsTrigger>
             <TabsTrigger value="inactive">
-              Neaktivní uživatelé
+              {t("users.inactiveUsers")}
               {inactiveUsers.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {inactiveUsers.length}
@@ -197,7 +200,7 @@ export default function UsersPage() {
               )}
             </TabsTrigger>
             <TabsTrigger value="invitations">
-              Pozvánky
+              {t("users.invitations")}
               {invitations.filter((i) => i.status === InvitationStatus.Pending).length > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {invitations.filter((i) => i.status === InvitationStatus.Pending).length}
@@ -210,8 +213,8 @@ export default function UsersPage() {
           <TabsContent value="users" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Seznam uživatelů</CardTitle>
-                <CardDescription>Přehled všech aktivních uživatelů v systému</CardDescription>
+                <CardTitle>{t("users.userList")}</CardTitle>
+                <CardDescription>{t("users.userListDesc")}</CardDescription>
               </CardHeader>
               <CardContent>
                 {isUsersLoading ? (
@@ -219,17 +222,17 @@ export default function UsersPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : users.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">Žádní uživatelé nenalezeni</div>
+                  <div className="text-center py-8 text-muted-foreground">{t("users.noUsers")}</div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Uživatel</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Pracoviště</TableHead>
-                        <TableHead className="text-right">Počet výdajů</TableHead>
-                        <TableHead className="text-right">Celkem výdajů</TableHead>
-                        <TableHead className="text-right">Akce</TableHead>
+                        <TableHead>{t("users.user")}</TableHead>
+                        <TableHead>{t("users.role")}</TableHead>
+                        <TableHead>{t("users.workplace")}</TableHead>
+                        <TableHead className="text-right">{t("users.expenseCount")}</TableHead>
+                        <TableHead className="text-right">{t("users.totalExpenses")}</TableHead>
+                        <TableHead className="text-right">{t("common.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -260,14 +263,14 @@ export default function UsersPage() {
                             {user.workplace && user.workplace !== "N/A" ? (
                               user.workplace
                             ) : (
-                              <span className="text-muted-foreground italic">Všechna pracoviště</span>
+                              <span className="text-muted-foreground italic">{t("dashboard.allWorkplaces")}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">{user.expenseCount}</TableCell>
-                          <TableCell className="text-right">{user.totalExpenses.toLocaleString("cs-CZ")} Kč</TableCell>
+                          <TableCell className="text-right">{user.totalExpenses.toLocaleString(getLocale())} {t("common.currency")}</TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="sm" onClick={() => handleRowClick(user.id)}>
-                              Detail
+                              {t("common.edit")}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -283,8 +286,8 @@ export default function UsersPage() {
           <TabsContent value="inactive" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Neaktivní uživatelé</CardTitle>
-                <CardDescription>Přehled deaktivovaných uživatelů v systému</CardDescription>
+                <CardTitle>{t("users.inactiveUsers")}</CardTitle>
+                <CardDescription>{t("users.userListDesc")}</CardDescription>
               </CardHeader>
               <CardContent>
                 {isInactiveUsersLoading ? (
@@ -292,17 +295,17 @@ export default function UsersPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : inactiveUsers.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">Žádní neaktivní uživatelé</div>
+                  <div className="text-center py-8 text-muted-foreground">{t("users.noUsers")}</div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Uživatel</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Pracoviště</TableHead>
-                        <TableHead className="text-right">Počet výdajů</TableHead>
-                        <TableHead className="text-right">Celkem výdajů</TableHead>
-                        <TableHead className="text-right">Akce</TableHead>
+                        <TableHead>{t("users.user")}</TableHead>
+                        <TableHead>{t("users.role")}</TableHead>
+                        <TableHead>{t("users.workplace")}</TableHead>
+                        <TableHead className="text-right">{t("users.expenseCount")}</TableHead>
+                        <TableHead className="text-right">{t("users.totalExpenses")}</TableHead>
+                        <TableHead className="text-right">{t("common.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -333,14 +336,14 @@ export default function UsersPage() {
                             {user.workplace && user.workplace !== "N/A" ? (
                               user.workplace
                             ) : (
-                              <span className="text-muted-foreground italic">Všechna pracoviště</span>
+                              <span className="text-muted-foreground italic">{t("dashboard.allWorkplaces")}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">{user.expenseCount}</TableCell>
-                          <TableCell className="text-right">{user.totalExpenses.toLocaleString("cs-CZ")} Kč</TableCell>
+                          <TableCell className="text-right">{user.totalExpenses.toLocaleString(getLocale())} {t("common.currency")}</TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="sm" onClick={() => handleRowClick(user.id)}>
-                              Detail
+                              {t("common.edit")}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -356,8 +359,8 @@ export default function UsersPage() {
           <TabsContent value="invitations" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Invitations</CardTitle>
-                <CardDescription>Overview of sent invitations</CardDescription>
+                <CardTitle>{t("users.invitations")}</CardTitle>
+                <CardDescription>{t("invitations.subtitle")}</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -365,17 +368,17 @@ export default function UsersPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : invitations.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No invitations found</div>
+                  <div className="text-center py-8 text-muted-foreground">{t("common.noResults")}</div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Workplace</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Expires</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t("common.email")}</TableHead>
+                        <TableHead>{t("users.workplace")}</TableHead>
+                        <TableHead>{t("common.date")}</TableHead>
+                        <TableHead>{t("common.date")}</TableHead>
+                        <TableHead>{t("common.status")}</TableHead>
+                        <TableHead className="text-right">{t("common.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -386,11 +389,11 @@ export default function UsersPage() {
                             {invitation.workplace?.name && invitation.workplace.name !== "N/A" ? (
                               invitation.workplace.name
                             ) : (
-                              <span className="text-muted-foreground italic">Všechna pracoviště</span>
+                              <span className="text-muted-foreground italic">{t("dashboard.allWorkplaces")}</span>
                             )}
                           </TableCell>
-                          <TableCell>{new Date(invitation.createdAt).toLocaleDateString()}</TableCell>
-                          <TableCell>{new Date(invitation.expiresAt).toLocaleDateString()}</TableCell>
+                          <TableCell>{new Date(invitation.createdAt).toLocaleDateString(getLocale())}</TableCell>
+                          <TableCell>{new Date(invitation.expiresAt).toLocaleDateString(getLocale())}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               {getInvitationStatusIcon(invitation.status)}
@@ -403,10 +406,10 @@ export default function UsersPage() {
                                 <>
                                   <Button variant="ghost" size="sm" onClick={() => handleResendInvitation(invitation.id)}>
                                     <RotateCw className="h-4 w-4 mr-1" />
-                                    Resend
+                                    {t("invitations.resend")}
                                   </Button>
                                   <Button variant="ghost" size="sm" onClick={() => handleCancelInvitation(invitation.id)}>
-                                    Cancel
+                                    {t("common.cancel")}
                                   </Button>
                                 </>
                               )}

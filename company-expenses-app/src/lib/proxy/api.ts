@@ -29,6 +29,8 @@ import type {
   Role,
   UserWithStats,
   UserDetail,
+  DashboardStats,
+  CategoryDependencies,
 } from "./types";
 
 export const authApi = {
@@ -56,6 +58,10 @@ export const authApi = {
 export const expensesApi = {
   async getExpenses(): Promise<Expense[]> {
     return apiProxy.get<Expense[]>("/api/expenses");
+  },
+
+  async getDashboardStats(): Promise<DashboardStats> {
+    return apiProxy.get<DashboardStats>("/api/expenses/dashboard-stats");
   },
 
   async getExpense(id: string): Promise<Expense> {
@@ -127,6 +133,10 @@ export const workplacesApi = {
     return apiProxy.delete(`/api/workplaces/${id}`);
   },
 
+  async getWorkplaceDependencies(id: string): Promise<WorkplaceDependencies> {
+    return apiProxy.get<WorkplaceDependencies>(`/api/workplaces/${id}/dependencies`);
+  },
+
   async activateWorkplace(id: string): Promise<void> {
     return apiProxy.patch(`/api/workplaces/activate/${id}`);
   },
@@ -163,8 +173,12 @@ export const workplaceMembersApi = {
     return apiProxy.get<WorkplaceMember[]>("/api/workplacemembers");
   },
 
-  async getUsersWithStats(): Promise<UserWithStats[]> {
-    return apiProxy.get<UserWithStats[]>("/api/workplacemembers/users-with-stats");
+  async getUsersWithStats(includeInactive: boolean = false): Promise<UserWithStats[]> {
+    return apiProxy.get<UserWithStats[]>(`/api/workplacemembers/users-with-stats?includeInactive=${includeInactive}`);
+  },
+
+  async getInactiveUsers(): Promise<UserWithStats[]> {
+    return apiProxy.get<UserWithStats[]>("/api/workplacemembers/users-with-stats/inactive");
   },
 
   async getUserDetail(userId: string): Promise<UserDetail> {
@@ -199,8 +213,28 @@ export const workplaceMembersApi = {
     return apiProxy.patch<{ message: string }>(`/api/workplacemembers/${id}/manager`, isManager);
   },
 
+  async deactivateUser(userId: string): Promise<{ message: string }> {
+    return apiProxy.patch<{ message: string }>(`/api/workplacemembers/user/${userId}/deactivate`);
+  },
+
+  async reactivateUser(userId: string): Promise<{ message: string }> {
+    return apiProxy.patch<{ message: string }>(`/api/workplacemembers/user/${userId}/reactivate`);
+  },
+
   async deleteUser(userId: string): Promise<{ message: string }> {
     return apiProxy.delete<{ message: string }>(`/api/workplacemembers/user/${userId}`);
+  },
+
+  async changeUserRole(userId: string, roleId: string): Promise<{ message: string }> {
+    return apiProxy.patch<{ message: string }>(`/api/workplacemembers/user/${userId}/role`, { roleId });
+  },
+
+  async addUserToWorkplace(userId: string, workplaceId: string, positionName?: string, isManager: boolean = false): Promise<{ message: string }> {
+    return apiProxy.post<{ message: string }>(`/api/workplacemembers/user/${userId}/workplace`, {
+      workplaceId,
+      positionName,
+      isManager,
+    });
   },
 };
 
@@ -226,6 +260,10 @@ export const invitationsApi = {
   },
 
   async cancelInvitation(id: string): Promise<void> {
+    return apiProxy.patch(`/api/invitations/${id}/cancel`);
+  },
+
+  async deleteInvitation(id: string): Promise<void> {
     return apiProxy.delete(`/api/invitations/${id}`);
   },
 
@@ -246,6 +284,10 @@ export const categoriesApi = {
 
   async getCategory(id: string): Promise<ExpenseCategory> {
     return apiProxy.get<ExpenseCategory>(`/api/expensecategories/${id}`);
+  },
+
+  async getCategoryDependencies(id: string): Promise<CategoryDependencies> {
+    return apiProxy.get<CategoryDependencies>(`/api/expensecategories/${id}/dependencies`);
   },
 
   async createCategory(data: CreateExpenseCategoryRequest): Promise<ExpenseCategory> {

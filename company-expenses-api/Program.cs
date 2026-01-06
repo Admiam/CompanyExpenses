@@ -70,8 +70,7 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddCookie(IdentityConstants.ApplicationScheme, options =>
     {
         options.Cookie.Name = ".AspNetCore.Identity.Application";
-        // Doporučení: pro localhost často Domain vůbec nedávat
-        // options.Cookie.Domain = "localhost";
+        options.Cookie.Domain = "localhost"; // MUST match Auth server!
         options.Cookie.Path = "/";
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.Cookie.SameSite = SameSiteMode.None;

@@ -5,8 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
-import { categoriesApi, workplacesApi } from "@/lib/proxy/api";
+import { categoriesApi, workplacesApi, workplaceMembersApi } from "@/lib/proxy/api";
 import type { ExpenseCategory, Workplace } from "@/lib/proxy/types";
+import { useAuth } from "@/auth/useAuth";
+import { isAdmin } from "@/utils/roles";
 
 interface ExpenseAttachment {
   id: string;
@@ -32,6 +34,9 @@ interface ExpenseFormModalProps {
 }
 
 export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: ExpenseFormModalProps) {
+  const { user } = useAuth();
+  const userIsAdmin = isAdmin(user?.role);
+
   const [formData, setFormData] = useState({
     description: "",
     amount: "",
@@ -51,19 +56,53 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [categoriesData, workplacesData] = await Promise.all([categoriesApi.getCategories(), workplacesApi.getWorkplaces()]);
-        // Filter only active items
+        console.log("Loading data for user:", user);
+        console.log("User is admin:", userIsAdmin);
+
+        const categoriesData = await categoriesApi.getCategories();
         setCategories(categoriesData.filter((c) => c.isActive));
-        setWorkplaces(workplacesData.filter((w) => w.isActive));
+
+        // Load workplaces based on user role
+        if (userIsAdmin) {
+          // Admin sees all workplaces
+          const workplacesData = await workplacesApi.getWorkplaces();
+          setWorkplaces(workplacesData.filter((w) => w.isActive));
+        } else if (user?.id) {
+          // Manager/User sees only their assigned workplaces
+          console.log("Fetching workplaces for user ID:", user.id);
+          const userWorkplaceMembers = await workplaceMembersApi.getUserWorkplaces(user.id);
+          console.log("User workplace members:", userWorkplaceMembers);
+
+          if (userWorkplaceMembers && userWorkplaceMembers.length > 0) {
+            const workplaceIds = userWorkplaceMembers.map((m) => m.workplaceId);
+            console.log("Workplace IDs:", workplaceIds);
+
+            // Fetch all workplaces and filter to user's workplaces
+            const allWorkplaces = await workplacesApi.getWorkplaces();
+            const userWorkplaces = allWorkplaces.filter((w) => w.isActive && workplaceIds.includes(w.id));
+            console.log("User workplaces:", userWorkplaces);
+            setWorkplaces(userWorkplaces);
+
+            // Auto-select first workplace for non-admin users (only when creating new expense)
+            if (userWorkplaces.length > 0 && !expense) {
+              setFormData((prev) => ({ ...prev, workplaceId: userWorkplaces[0].id }));
+            }
+          } else {
+            console.warn("No workplace memberships found for user");
+            setWorkplaces([]);
+          }
+        } else {
+          console.warn("No user ID available for loading workplaces");
+        }
       } catch (error) {
         console.error("Failed to load categories and workplaces:", error);
       }
     };
 
-    if (open) {
+    if (open && user) {
       loadData();
     }
-  }, [open]);
+  }, [open, userIsAdmin, user?.id, expense, user]);
 
   useEffect(() => {
     if (expense) {
@@ -149,6 +188,39 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate required fields
+    if (!formData.description.trim()) {
+      alert("Popis výdaje je povinný");
+      return;
+    }
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      alert("Částka musí být větší než 0");
+      return;
+    }
+    if (!formData.categoryId) {
+      alert("Kategorie je povinná");
+      return;
+    }
+
+    // For non-admin users, use their workplace, for admin validate workplace is selected
+    let workplaceId = formData.workplaceId;
+    if (!userIsAdmin) {
+      // Use the first workplace from user's workplaces
+      console.log("Non-admin user, workplaces available:", workplaces);
+      if (workplaces.length > 0) {
+        workplaceId = workplaces[0].id;
+        console.log("Using workplace:", workplaceId);
+      } else {
+        alert("Nemáte přiřazené žádné pracoviště. Kontaktujte administrátora.");
+        return;
+      }
+    } else {
+      if (!workplaceId) {
+        alert("Pracoviště je povinné");
+        return;
+      }
+    }
+
     // Convert files to base64
     const attachments = await Promise.all(
       selectedFiles.map(async (file) => {
@@ -168,7 +240,7 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
       currency: formData.currency,
       expenseDate: formData.expenseDate,
       categoryId: formData.categoryId,
-      workplaceId: formData.workplaceId,
+      workplaceId: workplaceId,
       attachments,
     });
   };
@@ -194,7 +266,9 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
           <div className="grid gap-4 py-4 px-6 overflow-y-auto flex-1">
             {/* Scrollable content area */}
             <div className="grid gap-2">
-              <Label htmlFor="description">Popis výdaje</Label>
+              <Label htmlFor="description">
+                Popis výdaje <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="description"
                 value={formData.description}
@@ -206,11 +280,14 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="amount">Částka (Kč)</Label>
+                <Label htmlFor="amount">
+                  Částka (Kč) <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="amount"
                   type="number"
                   step="0.01"
+                  min="0.01"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   placeholder="0.00"
@@ -230,10 +307,50 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {userIsAdmin ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="category">
+                    Kategorie <span className="text-red-500">*</span>
+                  </Label>
+                  <Select value={formData.categoryId} onValueChange={(value) => setFormData({ ...formData, categoryId: value })} required>
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="Vyberte kategorii" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="workplace">
+                    Pracoviště <span className="text-red-500">*</span>
+                  </Label>
+                  <Select value={formData.workplaceId} onValueChange={(value) => setFormData({ ...formData, workplaceId: value })} required>
+                    <SelectTrigger id="workplace">
+                      <SelectValue placeholder="Vyberte pracoviště" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workplaces.map((wp) => (
+                        <SelectItem key={wp.id} value={wp.id}>
+                          {wp.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ) : (
               <div className="grid gap-2">
-                <Label htmlFor="category">Kategorie</Label>
-                <Select value={formData.categoryId} onValueChange={(value) => setFormData({ ...formData, categoryId: value })}>
+                <Label htmlFor="category">
+                  Kategorie <span className="text-red-500">*</span>
+                </Label>
+                <Select value={formData.categoryId} onValueChange={(value) => setFormData({ ...formData, categoryId: value })} required>
                   <SelectTrigger id="category">
                     <SelectValue placeholder="Vyberte kategorii" />
                   </SelectTrigger>
@@ -246,23 +363,7 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="workplace">Pracoviště</Label>
-                <Select value={formData.workplaceId} onValueChange={(value) => setFormData({ ...formData, workplaceId: value })}>
-                  <SelectTrigger id="workplace">
-                    <SelectValue placeholder="Vyberte pracoviště" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workplaces.map((wp) => (
-                      <SelectItem key={wp.id} value={wp.id}>
-                        {wp.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            )}
 
             {/* File Upload Section */}
             <div className="grid gap-2">

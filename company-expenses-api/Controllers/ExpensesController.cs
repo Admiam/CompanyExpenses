@@ -495,4 +495,140 @@ public class ExpensesController : ControllerBase
 
         return NoContent();
     }
+
+    /// <summary>
+    /// Získá statistiky pro dashboard
+    /// </summary>
+    [HttpGet("dashboard-stats")]
+    public async Task<ActionResult> GetDashboardStats()
+    {
+        var now = DateTime.UtcNow;
+        var startOfMonth = DateOnly.FromDateTime(new DateTime(now.Year, now.Month, 1));
+        var startOfLastMonth = startOfMonth.AddMonths(-1);
+        var startOfYear = DateOnly.FromDateTime(new DateTime(now.Year, 1, 1));
+        var today = DateOnly.FromDateTime(now);
+
+        // Total expenses (all time, approved)
+        var totalExpenses = await _context.Expenses
+            .Where(e => e.Status == ExpenseStatus.Approved && !e.IsDeleted)
+            .SumAsync(e => e.Amount);
+
+        // Current month expenses
+        var monthlyExpenses = await _context.Expenses
+            .Where(e => e.ExpenseDate >= startOfMonth &&
+                       e.ExpenseDate <= today &&
+                       e.Status == ExpenseStatus.Approved &&
+                       !e.IsDeleted)
+            .SumAsync(e => e.Amount);
+
+        // Last month expenses
+        var lastMonthExpenses = await _context.Expenses
+            .Where(e => e.ExpenseDate >= startOfLastMonth &&
+                       e.ExpenseDate < startOfMonth &&
+                       e.Status == ExpenseStatus.Approved &&
+                       !e.IsDeleted)
+            .SumAsync(e => e.Amount);
+
+        // Calculate monthly change percentage
+        var monthlyChange = lastMonthExpenses > 0
+            ? ((monthlyExpenses - lastMonthExpenses) / lastMonthExpenses) * 100
+            : 0;
+
+        // Active workplaces count
+        var workplacesCount = await _context.Workplaces
+            .Where(w => w.IsActive)
+            .CountAsync();
+
+        // Active users count (from auth database)
+        var usersCount = await _authContext.NetUsers.CountAsync();
+
+        // Pending expenses count
+        var pendingExpensesCount = await _context.Expenses
+            .Where(e => e.Status == ExpenseStatus.Pending && !e.IsDeleted)
+            .CountAsync();
+
+        // Expenses by category (ALL categories)
+        var expensesByCategory = await _context.Expenses
+            .Include(e => e.Category)
+            .Where(e => e.ExpenseDate >= startOfYear &&
+                       e.Status == ExpenseStatus.Approved &&
+                       !e.IsDeleted &&
+                       e.Category != null)
+            .GroupBy(e => new { e.CategoryId, e.Category!.Name, e.Category.Color })
+            .Select(g => new
+            {
+                categoryId = g.Key.CategoryId,
+                categoryName = g.Key.Name,
+                categoryColor = g.Key.Color,
+                total = g.Sum(e => e.Amount),
+                count = g.Count()
+            })
+            .OrderByDescending(x => x.total)
+            .ToListAsync();
+
+        // Expenses by workplace (ALL workplaces) with category breakdown
+        var expensesByWorkplace = await _context.Expenses
+            .Include(e => e.Workplace)
+            .Include(e => e.Category)
+            .Where(e => e.ExpenseDate >= startOfYear &&
+                       e.Status == ExpenseStatus.Approved &&
+                       !e.IsDeleted &&
+                       e.Workplace != null)
+            .GroupBy(e => new { e.WorkplaceId, e.Workplace!.Name })
+            .Select(g => new
+            {
+                workplaceId = g.Key.WorkplaceId,
+                workplaceName = g.Key.Name,
+                total = g.Sum(e => e.Amount),
+                count = g.Count(),
+                categories = g.GroupBy(e => new { e.CategoryId, e.Category!.Name, e.Category.Color })
+                    .Select(cg => new
+                    {
+                        categoryId = cg.Key.CategoryId,
+                        categoryName = cg.Key.Name,
+                        categoryColor = cg.Key.Color,
+                        total = cg.Sum(e => e.Amount)
+                    })
+                    .ToList()
+            })
+            .OrderByDescending(x => x.total)
+            .ToListAsync();
+
+        // Recent expenses (last 10 for better overview)
+        var recentExpenses = await _context.Expenses
+            .Include(e => e.Category)
+            .Include(e => e.Workplace)
+            .Where(e => !e.IsDeleted)
+            .OrderByDescending(e => e.SubmittedAt)
+            .Take(10)
+            .Select(e => new
+            {
+                id = e.Id,
+                description = e.Description,
+                amount = e.Amount,
+                currency = e.Currency,
+                expenseDate = e.ExpenseDate,
+                status = e.Status.ToString(),
+                employeeUserId = e.EmployeeUserId,
+                categoryName = e.Category != null ? e.Category.Name : null,
+                workplaceName = e.Workplace != null ? e.Workplace.Name : null,
+                submittedAt = e.SubmittedAt
+            })
+            .ToListAsync();
+
+        var result = new
+        {
+            totalExpenses,
+            monthlyExpenses,
+            monthlyChange = Math.Round(monthlyChange, 1),
+            workplacesCount,
+            usersCount,
+            pendingExpensesCount,
+            expensesByCategory,
+            expensesByWorkplace,
+            recentExpenses
+        };
+
+        return Ok(result);
+    }
 }

@@ -26,7 +26,6 @@ public class WorkplacesController : ControllerBase
     public async Task<ActionResult<IEnumerable<WorkplaceDto>>> GetWorkplaces()
     {
         var workplaces = await _context.Workplaces
-            .Where(w => w.IsActive)
             .Include(w => w.Members)
             .ToListAsync();
 
@@ -151,7 +150,35 @@ public class WorkplacesController : ControllerBase
     }
 
     /// <summary>
-    /// Smaže pracoviště (soft delete)
+    /// Získá informace o závislostech pracoviště
+    /// </summary>
+    [HttpGet("{id}/dependencies")]
+    public async Task<ActionResult<WorkplaceDependenciesDto>> GetWorkplaceDependencies(Guid id)
+    {
+        var workplace = await _context.Workplaces.FindAsync(id);
+        if (workplace == null)
+        {
+            return NotFound();
+        }
+
+        var membersCount = await _context.WorkplaceMembers.CountAsync(m => m.WorkplaceId == id);
+        var limitsCount = await _context.WorkplaceLimits.CountAsync(l => l.WorkplaceId == id);
+        var invitationsCount = await _context.Invitations.CountAsync(i => i.WorkplaceId == id);
+        var expensesCount = await _context.Expenses.CountAsync(e => e.WorkplaceId == id);
+
+        return Ok(new WorkplaceDependenciesDto
+        {
+            WorkplaceId = id,
+            MembersCount = membersCount,
+            LimitsCount = limitsCount,
+            InvitationsCount = invitationsCount,
+            ExpensesCount = expensesCount,
+            CanDelete = membersCount == 0 && limitsCount == 0 && invitationsCount == 0 && expensesCount == 0
+        });
+    }
+
+    /// <summary>
+    /// Smaže pracoviště z databáze (pouze pokud nemá závislosti)
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteWorkplace(Guid id)
@@ -162,7 +189,28 @@ public class WorkplacesController : ControllerBase
             return NotFound();
         }
 
-        workplace.IsActive = false;
+        // Check dependencies
+        var membersCount = await _context.WorkplaceMembers.CountAsync(m => m.WorkplaceId == id);
+        var limitsCount = await _context.WorkplaceLimits.CountAsync(l => l.WorkplaceId == id);
+        var invitationsCount = await _context.Invitations.CountAsync(i => i.WorkplaceId == id);
+        var expensesCount = await _context.Expenses.CountAsync(e => e.WorkplaceId == id);
+
+        if (membersCount > 0 || limitsCount > 0 || invitationsCount > 0 || expensesCount > 0)
+        {
+            return BadRequest(new
+            {
+                message = "Cannot delete workplace with existing dependencies",
+                dependencies = new
+                {
+                    membersCount,
+                    limitsCount,
+                    invitationsCount,
+                    expensesCount
+                }
+            });
+        }
+
+        _context.Workplaces.Remove(workplace);
         await _context.SaveChangesAsync();
 
         return NoContent();
@@ -172,4 +220,14 @@ public class WorkplacesController : ControllerBase
     {
         return await _context.Workplaces.AnyAsync(e => e.Id == id);
     }
+}
+
+public class WorkplaceDependenciesDto
+{
+    public Guid WorkplaceId { get; set; }
+    public int MembersCount { get; set; }
+    public int LimitsCount { get; set; }
+    public int InvitationsCount { get; set; }
+    public int ExpensesCount { get; set; }
+    public bool CanDelete { get; set; }
 }

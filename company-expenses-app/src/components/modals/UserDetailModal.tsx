@@ -7,11 +7,14 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Mail, Calendar, TrendingUp, CheckCircle2, XCircle, Users, Loader2, Building2, Shield, Trash2, AlertTriangle } from "lucide-react";
-import { workplaceMembersApi } from "@/lib/proxy/api";
-import type { UserDetail } from "@/lib/proxy/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Mail, Calendar, TrendingUp, CheckCircle2, XCircle, Users, Loader2, Building2, Shield, UserX, UserCheck } from "lucide-react";
+import { workplaceMembersApi, rolesApi, workplacesApi } from "@/lib/proxy/api";
+import type { UserDetail, Role, Workplace } from "@/lib/proxy/types";
 import { roleLabels, roleColors } from "@/constants";
 import { toast } from "sonner";
+import { useAuth } from "@/auth/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,10 +72,33 @@ const invitationStatusLabels = {
 };
 
 export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: UserDetailModalProps) {
+  const { user: currentUser } = useAuth();
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [isChangingRole, setIsChangingRole] = useState(false);
+  const [workplaces, setWorkplaces] = useState<Workplace[]>([]);
+  const [isSavingWorkplaces, setIsSavingWorkplaces] = useState(false);
+  const [selectedWorkplaceIds, setSelectedWorkplaceIds] = useState<Set<string>>(new Set());
+
+  // Role hierarchy: admin > manager > user
+  const getRoleLevel = (role: string): number => {
+    const roleLower = role.toLowerCase();
+    if (roleLower === "admin") return 3;
+    if (roleLower === "manager") return 2;
+    if (roleLower === "user") return 1;
+    return 0;
+  };
+
+  // Check if current user can edit target user
+  const canEditUser = (): boolean => {
+    if (!currentUser || !userDetail) return false;
+    const currentUserLevel = getRoleLevel(currentUser.role);
+    const targetUserLevel = getRoleLevel(userDetail.role);
+    return currentUserLevel > targetUserLevel;
+  };
 
   const loadUserDetail = useCallback(async () => {
     if (!userId) return;
@@ -88,29 +114,128 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
     }
   }, [userId]);
 
+  const loadRoles = useCallback(async () => {
+    try {
+      const data = await rolesApi.getRoles();
+      setRoles(data);
+    } catch (error) {
+      console.error("Failed to load roles:", error);
+    }
+  }, []);
+
+  const loadWorkplaces = useCallback(async () => {
+    try {
+      const data = await workplacesApi.getWorkplaces();
+      setWorkplaces(data.filter((w) => w.isActive));
+    } catch (error) {
+      console.error("Failed to load workplaces:", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (open && userId) {
       loadUserDetail();
+      loadRoles();
+      loadWorkplaces();
     }
-  }, [open, userId, loadUserDetail]);
+  }, [open, userId, loadUserDetail, loadRoles, loadWorkplaces]);
 
-  const handleDeleteUser = async () => {
-    if (!userId) return;
+  useEffect(() => {
+    if (userDetail) {
+      // Initialize selected workplaces based on user's current memberships
+      const memberWorkplaceIds = new Set(userDetail.memberships.map((m) => m.workplaceId));
+      setSelectedWorkplaceIds(memberWorkplaceIds);
+    }
+  }, [userDetail]);
+
+  const handleDeactivateUser = async () => {
+    if (!userId || !userDetail) return;
 
     try {
-      setIsDeleting(true);
-      await workplaceMembersApi.deleteUser(userId);
-      toast.success("Uživatel byl úspěšně odstraněn");
-      setShowDeleteDialog(false);
+      setIsDeactivating(true);
+      if (userDetail.isActive) {
+        await workplaceMembersApi.deactivateUser(userId);
+        toast.success("Uživatel byl úspěšně deaktivován");
+      } else {
+        await workplaceMembersApi.reactivateUser(userId);
+        toast.success("Uživatel byl úspěšně aktivován");
+      }
+      setShowDeactivateDialog(false);
       onOpenChange(false);
       if (onUserDeleted) {
         onUserDeleted();
       }
     } catch (error) {
-      console.error("Failed to delete user:", error);
-      toast.error("Nepodařilo se odstranit uživatele");
+      console.error("Failed to deactivate/reactivate user:", error);
+      toast.error("Nepodařilo se změnit stav uživatele");
     } finally {
-      setIsDeleting(false);
+      setIsDeactivating(false);
+    }
+  };
+
+  const handleRoleChange = async (roleId: string) => {
+    if (!userId) return;
+
+    try {
+      setIsChangingRole(true);
+      await workplaceMembersApi.changeUserRole(userId, roleId);
+      toast.success("Role uživatele byla úspěšně změněna");
+      // Reload user detail to show updated role
+      await loadUserDetail();
+    } catch (error) {
+      console.error("Failed to change user role:", error);
+      toast.error("Nepodařilo se změnit roli uživatele");
+    } finally {
+      setIsChangingRole(false);
+    }
+  };
+
+  const handleWorkplaceToggle = (workplaceId: string) => {
+    setSelectedWorkplaceIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(workplaceId)) {
+        newSet.delete(workplaceId);
+      } else {
+        newSet.add(workplaceId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSaveWorkplaces = async () => {
+    if (!userId || !userDetail) return;
+
+    try {
+      setIsSavingWorkplaces(true);
+
+      // Current memberships
+      const currentWorkplaceIds = new Set(userDetail.memberships.map((m) => m.workplaceId));
+
+      // Find workplaces to add (selected but not in current memberships)
+      const toAdd = Array.from(selectedWorkplaceIds).filter((id) => !currentWorkplaceIds.has(id));
+
+      // Find workplaces to remove (in current memberships but not selected)
+      const toRemove = userDetail.memberships.filter((m) => !selectedWorkplaceIds.has(m.workplaceId));
+
+      // Add new memberships
+      for (const workplaceId of toAdd) {
+        await workplaceMembersApi.addUserToWorkplace(userId, workplaceId);
+      }
+
+      // Remove old memberships
+      for (const membership of toRemove) {
+        await workplaceMembersApi.removeMember(membership.id);
+      }
+
+      toast.success("Členství na pracovištích byla úspěšně aktualizována");
+      // Reload user detail to show updated memberships
+      await loadUserDetail();
+    } catch (error: any) {
+      console.error("Failed to save workplace memberships:", error);
+      const errorMessage = error?.response?.data?.message || "Nepodařilo se aktualizovat členství";
+      toast.error(errorMessage);
+    } finally {
+      setIsSavingWorkplaces(false);
     }
   };
 
@@ -125,10 +250,26 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
               <DialogTitle>Detail uživatele</DialogTitle>
               <DialogDescription>Kompletní přehled aktivit a statistik uživatele</DialogDescription>
             </div>
-            <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)} disabled={isDeleting}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Odstranit uživatele
-            </Button>
+            {userDetail && (
+              <Button
+                variant={userDetail.isActive ? "outline" : "default"}
+                size="sm"
+                onClick={() => setShowDeactivateDialog(true)}
+                disabled={isDeactivating || !canEditUser()}
+              >
+                {userDetail.isActive ? (
+                  <>
+                    <UserX className="h-4 w-4 mr-2" />
+                    Deaktivovat
+                  </>
+                ) : (
+                  <>
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Aktivovat
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </DialogHeader>
 
@@ -164,6 +305,71 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                     <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
                       Registrován: {new Date(userDetail.createdAt).toLocaleDateString("cs-CZ")}
+                    </div>
+                    <div className="mt-4">
+                      <label className="text-sm font-medium mb-2 block">Změnit roli</label>
+                      {!canEditUser() && <p className="text-xs text-muted-foreground mb-2">Nemáte oprávnění upravovat roli tohoto uživatele</p>}
+                      <Select
+                        value={roles.find((r) => r.name.toLowerCase() === userDetail.role)?.id || ""}
+                        onValueChange={handleRoleChange}
+                        disabled={isChangingRole || !canEditUser()}
+                      >
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Vyberte roli" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roles
+                            .filter((role) => {
+                              if (!currentUser) return false;
+                              const currentUserLevel = getRoleLevel(currentUser.role);
+                              const roleLevel = getRoleLevel(role.name);
+                              return roleLevel < currentUserLevel;
+                            })
+                            .map((role) => (
+                              <SelectItem key={role.id} value={role.id}>
+                                {roleLabels[role.name.toLowerCase() as keyof typeof roleLabels] || role.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-medium">Členství na pracovištích</label>
+                        <Button onClick={handleSaveWorkplaces} disabled={isSavingWorkplaces || !canEditUser()} size="sm" variant="secondary">
+                          {isSavingWorkplaces ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Ukládání...
+                            </>
+                          ) : (
+                            "Uložit změny"
+                          )}
+                        </Button>
+                      </div>
+                      {!canEditUser() && <p className="text-xs text-muted-foreground mb-2">Nemáte oprávnění upravovat členství tohoto uživatele</p>}
+                      <div className="border rounded-md p-3 max-h-[200px] overflow-y-auto space-y-2">
+                        {workplaces.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Žádná pracoviště k dispozici</p>
+                        ) : (
+                          workplaces.map((workplace) => (
+                            <div key={workplace.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`workplace-${workplace.id}`}
+                                checked={selectedWorkplaceIds.has(workplace.id)}
+                                onCheckedChange={() => handleWorkplaceToggle(workplace.id)}
+                                disabled={isSavingWorkplaces || !canEditUser()}
+                              />
+                              <label
+                                htmlFor={`workplace-${workplace.id}`}
+                                className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                              >
+                                {workplace.name}
+                              </label>
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -448,38 +654,53 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
         )}
       </DialogContent>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      {/* Deactivate/Reactivate Confirmation Dialog */}
+      <AlertDialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Odstranit uživatele?
+              {userDetail?.isActive ? <UserX className="h-5 w-5" /> : <UserCheck className="h-5 w-5" />}
+              {userDetail?.isActive ? "Deaktivovat uživatele?" : "Aktivovat uživatele?"}
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
-              <p>Tato akce je nevratná a odstraní:</p>
-              <ul className="list-disc list-inside ml-4 space-y-1">
-                <li>Všechna členství na pracovištích</li>
-                <li>Všechny výdaje (budou označeny jako smazané)</li>
-                <li>Všechna schválení výdajů</li>
-                <li>Všechny pozvánky (budou zrušeny)</li>
-                <li>Uživatelský účet z Identity systému</li>
-              </ul>
-              <p className="font-semibold mt-4">Opravdu chcete pokračovat?</p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Zrušit</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteUser} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {isDeleting ? (
+              {userDetail?.isActive ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Odstraňuji...
+                  <p>Deaktivací uživatele:</p>
+                  <ul className="list-disc list-inside ml-4 space-y-1">
+                    <li>Uživatel se nebude moci přihlásit</li>
+                    <li>Všechna data zůstanou zachována</li>
+                    <li>Uživatele můžete kdykoliv znovu aktivovat</li>
+                  </ul>
                 </>
               ) : (
                 <>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Ano, odstranit
+                  <p>Aktivací uživatele:</p>
+                  <ul className="list-disc list-inside ml-4 space-y-1">
+                    <li>Uživatel se bude moci znovu přihlásit</li>
+                    <li>Přístup ke všem datům bude obnoven</li>
+                  </ul>
+                </>
+              )}
+              <p className="font-semibold mt-4">Chcete pokračovat?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeactivating}>Zrušit</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeactivateUser} disabled={isDeactivating}>
+              {isDeactivating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Ukládám...
+                </>
+              ) : userDetail?.isActive ? (
+                <>
+                  <UserX className="h-4 w-4 mr-2" />
+                  Ano, deaktivovat
+                </>
+              ) : (
+                <>
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  Ano, aktivovat
                 </>
               )}
             </AlertDialogAction>

@@ -54,12 +54,18 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate required fields
+    if (!formData.email || !formData.invitedRoleId || !formData.workplaceId) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
     try {
       setIsSending(true);
       await invitationsApi.createInvitation({
         email: formData.email,
-        invitedRoleId: formData.invitedRoleId || undefined,
-        workplaceId: formData.workplaceId || undefined,
+        invitedRoleId: formData.invitedRoleId,
+        workplaceId: formData.workplaceId,
       });
 
       toast.success("Invitation sent successfully");
@@ -85,7 +91,9 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
 
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">
+                  Email <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -98,11 +106,14 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="role">Role (Optional)</Label>
+                <Label htmlFor="role">
+                  Role <span className="text-red-500">*</span>
+                </Label>
                 <Select
                   value={formData.invitedRoleId}
                   onValueChange={(value) => setFormData({ ...formData, invitedRoleId: value })}
                   disabled={isLoading || isSending}
+                  required
                 >
                   <SelectTrigger id="role">
                     <SelectValue placeholder={isLoading ? "Loading..." : "Select role"} />
@@ -118,11 +129,14 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="workplace">Workplace (Optional)</Label>
+                <Label htmlFor="workplace">
+                  Workplace <span className="text-red-500">*</span>
+                </Label>
                 <Select
                   value={formData.workplaceId}
                   onValueChange={(value) => setFormData({ ...formData, workplaceId: value })}
                   disabled={isLoading || isSending}
+                  required
                 >
                   <SelectTrigger id="workplace">
                     <SelectValue placeholder={isLoading ? "Loading..." : "Select workplace"} />
@@ -142,7 +156,7 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSending}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSending}>
+              <Button type="submit" disabled={isSending || !formData.email || !formData.invitedRoleId || !formData.workplaceId}>
                 {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Send Invitation
               </Button>

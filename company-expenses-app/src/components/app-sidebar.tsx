@@ -1,26 +1,12 @@
-import * as React from "react"
-import {
-  IconDashboard,
-  IconUsers,
-  IconSettings,
-  IconCreditCard,
-  IconBuildingSkyscraper,
-  IconHelp,
-  IconCategory,
-} from "@tabler/icons-react"
+import * as React from "react";
+import { IconDashboard, IconUsers, IconSettings, IconCreditCard, IconBuildingSkyscraper, IconHelp, IconCategory } from "@tabler/icons-react";
 
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar"
+import { NavMain } from "@/components/nav-main";
+import { NavSecondary } from "@/components/nav-secondary";
+import { NavUser } from "@/components/nav-user";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import { useAuth } from "@/auth/useAuth";
+import { canAccessWorkplaces, canAccessUsers, canAccessCategories } from "@/utils/roles";
 
 const data = {
   user: {
@@ -67,32 +53,54 @@ const data = {
       icon: IconHelp,
     },
   ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user } = useAuth();
+  const userRole = user?.role;
+
+  // Filter navigation items based on user role
+  const navMainFiltered = data.navMain.filter((item) => {
+    if (item.url === "/workplaces") {
+      return canAccessWorkplaces(userRole);
+    }
+    if (item.url === "/users") {
+      return canAccessUsers(userRole);
+    }
+    if (item.url === "/categories") {
+      return canAccessCategories(userRole);
+    }
+    // Dashboard and Expenses are accessible to all authenticated users
+    return true;
+  });
+
   return (
-      <Sidebar collapsible="offcanvas" {...props}>
-        <SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                  asChild
-                  className="data-[slot=sidebar-menu-button]:!p-1.5"
-              >
-                <a href="/">
-                  <span className="text-base font-semibold">Company Expenses</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarHeader>
-        <SidebarContent>
-          <NavMain items={data.navMain} />
-          <NavSecondary items={data.navSecondary} className="mt-auto" />
-        </SidebarContent>
-        <SidebarFooter>
-          <NavUser user={data.user} />
-        </SidebarFooter>
-      </Sidebar>
-  )
+    <Sidebar collapsible="offcanvas" {...props}>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
+              <a href="/">
+                <span className="text-base font-semibold">Company Expenses</span>
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+      <SidebarContent>
+        <NavMain items={navMainFiltered} />
+        <NavSecondary items={data.navSecondary} className="mt-auto" />
+      </SidebarContent>
+      <SidebarFooter>
+        <NavUser
+          user={{
+            name: user?.name || "Uživatel",
+            email: user?.email || "",
+            avatar: "/avatars/admin.jpg",
+            role: user?.role || "User",
+          }}
+        />
+      </SidebarFooter>
+    </Sidebar>
+  );
 }

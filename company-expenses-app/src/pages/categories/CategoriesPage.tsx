@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { CategoryFormModal } from "@/components/modals/CategoryFormModal";
+import { CategoryDeleteModal } from "@/components/modals/CategoryDeleteModal";
 import { categoriesApi } from "@/lib/proxy/api";
 import type { ExpenseCategory } from "@/lib/proxy/types";
 import { toast } from "sonner";
@@ -17,6 +18,8 @@ export default function CategoriesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ExpenseCategory | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     loadCategories();
@@ -73,17 +76,25 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this category?")) {
-      return;
-    }
+    const category = categories.find((c) => c.id === id);
+    if (!category) return;
+
+    setCategoryToDelete({ id: category.id, name: category.name });
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!categoryToDelete) return;
 
     try {
-      await categoriesApi.deleteCategory(id);
-      toast.success("Category deleted");
+      await categoriesApi.deleteCategory(categoryToDelete.id);
+      toast.success("Kategorie byla smazána");
+      setDeleteModalOpen(false);
+      setCategoryToDelete(null);
       loadCategories();
     } catch (error: any) {
       console.error("Failed to delete category:", error);
-      toast.error(error?.response?.data?.message || "Failed to delete category");
+      toast.error(error?.response?.data?.message || "Nepodařilo se smazat kategorii");
     }
   };
 
@@ -293,6 +304,14 @@ export default function CategoriesPage() {
           onOpenChange={setIsModalOpen}
           category={editingCategory ? { ...editingCategory, color: (editingCategory as any).color || "#000000" } : null}
           onSave={handleSave}
+        />
+
+        <CategoryDeleteModal
+          open={deleteModalOpen}
+          onOpenChange={setDeleteModalOpen}
+          categoryId={categoryToDelete?.id || null}
+          categoryName={categoryToDelete?.name || ""}
+          onConfirm={handleConfirmDelete}
         />
       </div>
     </MainLayout>

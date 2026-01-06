@@ -1,6 +1,6 @@
 import { MainLayout } from "@/components/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
-import { Plus, Shield, User, Loader2, RotateCw, Mail } from "lucide-react";
+import { Plus, Shield, User, Loader2, RotateCw, Mail, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,9 +17,11 @@ import { getInvitationStatusLabel, getInvitationStatusIcon } from "@/utils";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserWithStats[]>([]);
+  const [inactiveUsers, setInactiveUsers] = useState<UserWithStats[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUsersLoading, setIsUsersLoading] = useState(true);
+  const [isInactiveUsersLoading, setIsInactiveUsersLoading] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -39,6 +41,19 @@ export default function UsersPage() {
       toast.error("Failed to load users");
     } finally {
       setIsUsersLoading(false);
+    }
+  };
+
+  const loadInactiveUsers = async () => {
+    try {
+      setIsInactiveUsersLoading(true);
+      const data = await workplaceMembersApi.getInactiveUsers();
+      setInactiveUsers(data);
+    } catch (error) {
+      console.error("Failed to load inactive users:", error);
+      toast.error("Failed to load inactive users");
+    } finally {
+      setIsInactiveUsersLoading(false);
     }
   };
 
@@ -77,6 +92,20 @@ export default function UsersPage() {
     }
   };
 
+  const handleDeleteInvitation = async (id: string) => {
+    if (!confirm("Are you sure you want to permanently delete this invitation?")) {
+      return;
+    }
+    try {
+      await invitationsApi.deleteInvitation(id);
+      toast.success("Invitation deleted");
+      loadInvitations();
+    } catch (error) {
+      console.error("Failed to delete invitation:", error);
+      toast.error("Failed to delete invitation");
+    }
+  };
+
   const handleInvitationCreated = () => {
     setIsInviteModalOpen(false);
     loadInvitations();
@@ -89,6 +118,7 @@ export default function UsersPage() {
 
   const handleUserDeleted = () => {
     loadUsers();
+    loadInactiveUsers();
   };
 
   return (
@@ -147,11 +177,27 @@ export default function UsersPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="users" className="space-y-4">
+        <Tabs
+          defaultValue="users"
+          className="space-y-4"
+          onValueChange={(value) => {
+            if (value === "inactive" && inactiveUsers.length === 0) {
+              loadInactiveUsers();
+            }
+          }}
+        >
           <TabsList>
-            <TabsTrigger value="users">Active Users</TabsTrigger>
+            <TabsTrigger value="users">Aktivní uživatelé</TabsTrigger>
+            <TabsTrigger value="inactive">
+              Neaktivní uživatelé
+              {inactiveUsers.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {inactiveUsers.length}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="invitations">
-              Invitations
+              Pozvánky
               {invitations.filter((i) => i.status === InvitationStatus.Pending).length > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {invitations.filter((i) => i.status === InvitationStatus.Pending).length}
@@ -210,7 +256,86 @@ export default function UsersPage() {
                               {roleLabels[user.role as keyof typeof roleLabels]}
                             </Badge>
                           </TableCell>
-                          <TableCell>{user.workplace}</TableCell>
+                          <TableCell>
+                            {user.workplace && user.workplace !== "N/A" ? (
+                              user.workplace
+                            ) : (
+                              <span className="text-muted-foreground italic">Všechna pracoviště</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">{user.expenseCount}</TableCell>
+                          <TableCell className="text-right">{user.totalExpenses.toLocaleString("cs-CZ")} Kč</TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm" onClick={() => handleRowClick(user.id)}>
+                              Detail
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Inactive Users Tab */}
+          <TabsContent value="inactive" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Neaktivní uživatelé</CardTitle>
+                <CardDescription>Přehled deaktivovaných uživatelů v systému</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isInactiveUsersLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : inactiveUsers.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">Žádní neaktivní uživatelé</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Uživatel</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Pracoviště</TableHead>
+                        <TableHead className="text-right">Počet výdajů</TableHead>
+                        <TableHead className="text-right">Celkem výdajů</TableHead>
+                        <TableHead className="text-right">Akce</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {inactiveUsers.map((user) => (
+                        <TableRow key={user.id} className="cursor-pointer hover:bg-muted/50 opacity-60" onClick={() => handleRowClick(user.id)}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback>
+                                  {user.name
+                                    ?.split(" ")
+                                    .map((n) => n[0])
+                                    .join("") || user.email.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium">{user.name || user.email}</div>
+                                <div className="text-sm text-muted-foreground">{user.email}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className={roleColors[user.role as keyof typeof roleColors]}>
+                              {roleLabels[user.role as keyof typeof roleLabels]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {user.workplace && user.workplace !== "N/A" ? (
+                              user.workplace
+                            ) : (
+                              <span className="text-muted-foreground italic">Všechna pracoviště</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">{user.expenseCount}</TableCell>
                           <TableCell className="text-right">{user.totalExpenses.toLocaleString("cs-CZ")} Kč</TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -257,7 +382,13 @@ export default function UsersPage() {
                       {invitations.map((invitation) => (
                         <TableRow key={invitation.id}>
                           <TableCell className="font-medium">{invitation.email}</TableCell>
-                          <TableCell>{invitation.workplace?.name || "N/A"}</TableCell>
+                          <TableCell>
+                            {invitation.workplace?.name && invitation.workplace.name !== "N/A" ? (
+                              invitation.workplace.name
+                            ) : (
+                              <span className="text-muted-foreground italic">Všechna pracoviště</span>
+                            )}
+                          </TableCell>
                           <TableCell>{new Date(invitation.createdAt).toLocaleDateString()}</TableCell>
                           <TableCell>{new Date(invitation.expiresAt).toLocaleDateString()}</TableCell>
                           <TableCell>
@@ -279,6 +410,14 @@ export default function UsersPage() {
                                   </Button>
                                 </>
                               )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteInvitation(invitation.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>

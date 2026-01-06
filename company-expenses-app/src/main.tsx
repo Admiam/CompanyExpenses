@@ -14,6 +14,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute.tsx";
 import { PublicRoute } from "@/components/PublicRoute.tsx";
+import { RoleProtectedRoute } from "@/components/RoleProtectedRoute.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -68,7 +69,9 @@ createRoot(document.getElementById("root")!).render(
               path="/workplaces"
               element={
                 <ProtectedRoute>
-                  <WorkplacesPage />
+                  <RoleProtectedRoute requiredRoles={["Admin", "Manager"]}>
+                    <WorkplacesPage />
+                  </RoleProtectedRoute>
                 </ProtectedRoute>
               }
             />
@@ -76,7 +79,9 @@ createRoot(document.getElementById("root")!).render(
               path="/users"
               element={
                 <ProtectedRoute>
-                  <UsersPage />
+                  <RoleProtectedRoute requiredRoles={["Admin", "Manager"]}>
+                    <UsersPage />
+                  </RoleProtectedRoute>
                 </ProtectedRoute>
               }
             />
@@ -84,7 +89,9 @@ createRoot(document.getElementById("root")!).render(
               path="/categories"
               element={
                 <ProtectedRoute>
-                  <CategoriesPage />
+                  <RoleProtectedRoute requiredRoles={["Admin", "Manager"]}>
+                    <CategoriesPage />
+                  </RoleProtectedRoute>
                 </ProtectedRoute>
               }
             />

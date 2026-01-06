@@ -96,6 +96,30 @@ public class ExpenseCategoriesController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Získá informace o závislostech kategorie (výdaje a limity)
+    /// </summary>
+    [HttpGet("{id}/dependencies")]
+    public async Task<ActionResult<CategoryDependenciesDto>> GetCategoryDependencies(Guid id)
+    {
+        var category = await _context.ExpenseCategories.FindAsync(id);
+        if (category == null)
+        {
+            return NotFound();
+        }
+
+        var expensesCount = await _context.Expenses.CountAsync(e => e.CategoryId == id);
+        var limitsCount = await _context.WorkplaceLimits.CountAsync(l => l.CategoryId == id);
+
+        return Ok(new CategoryDependenciesDto
+        {
+            CategoryId = id,
+            ExpensesCount = expensesCount,
+            LimitsCount = limitsCount,
+            CanDelete = expensesCount == 0 && limitsCount == 0
+        });
+    }
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteCategory(Guid id)
     {
@@ -103,6 +127,23 @@ public class ExpenseCategoriesController : ControllerBase
         if (category == null)
         {
             return NotFound();
+        }
+
+        // Check dependencies
+        var expensesCount = await _context.Expenses.CountAsync(e => e.CategoryId == id);
+        var limitsCount = await _context.WorkplaceLimits.CountAsync(l => l.CategoryId == id);
+
+        if (expensesCount > 0 || limitsCount > 0)
+        {
+            return BadRequest(new
+            {
+                message = "Cannot delete category with existing dependencies",
+                dependencies = new
+                {
+                    expensesCount,
+                    limitsCount
+                }
+            });
         }
 
         _context.ExpenseCategories.Remove(category);
@@ -140,4 +181,12 @@ public class ExpenseCategoriesController : ControllerBase
 
         return NoContent();
     }
+}
+
+public class CategoryDependenciesDto
+{
+    public Guid CategoryId { get; set; }
+    public int ExpensesCount { get; set; }
+    public int LimitsCount { get; set; }
+    public bool CanDelete { get; set; }
 }

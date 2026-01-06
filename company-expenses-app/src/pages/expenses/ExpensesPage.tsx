@@ -11,6 +11,8 @@ import { ExpenseDetailModal } from "@/components/modals/ExpenseDetailModal";
 import { expensesApi } from "@/lib/proxy/api";
 import type { CreateExpenseRequest } from "@/lib/proxy/types";
 import { toast } from "sonner";
+import { useAuth } from "@/auth/useAuth";
+import { isManagerOrAdmin } from "@/utils/roles";
 
 interface Expense {
   id: string;
@@ -40,6 +42,9 @@ const statusLabels = {
 };
 
 export default function ExpensesPage() {
+  const { user } = useAuth();
+  const canApprove = isManagerOrAdmin(user?.role);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -249,24 +254,28 @@ export default function ExpensesPage() {
                         <div className="flex gap-1 justify-end">
                           {expense.status === "Pending" && (
                             <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleApprovalAction(expense, "approve")}
-                                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                title="Schválit"
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleApprovalAction(expense, "reject")}
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                title="Zamítnout"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
+                              {canApprove && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleApprovalAction(expense, "approve")}
+                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    title="Schválit"
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleApprovalAction(expense, "reject")}
+                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    title="Zamítnout"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"

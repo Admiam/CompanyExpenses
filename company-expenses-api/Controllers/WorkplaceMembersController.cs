@@ -40,10 +40,12 @@ public class WorkplaceMembersController : ControllerBase
     /// Gets all users with their expense statistics
     /// </summary>
     [HttpGet("users-with-stats")]
-    public async Task<ActionResult> GetUsersWithStats()
+    public async Task<ActionResult> GetUsersWithStats([FromQuery] bool includeInactive = false)
     {
-        // Get ALL users from auth database
-        var users = await _authContext.NetUsers.ToListAsync();
+        // Get users from auth database (filter by IsActive unless includeInactive is true)
+        var users = includeInactive
+            ? await _authContext.NetUsers.ToListAsync()
+            : await _authContext.NetUsers.Where(u => u.IsActive).ToListAsync();
 
         // Get all user IDs
         var userIds = users.Select(u => u.Id).ToList();
@@ -86,7 +88,68 @@ public class WorkplaceMembersController : ControllerBase
                 role = role?.Name?.ToLower() ?? "employee",
                 workplace = member?.Workplace?.Name ?? "N/A",
                 workplaceId = member?.WorkplaceId,
-                status = "active",
+                isActive = user.IsActive,
+                status = user.IsActive ? "active" : "inactive",
+                expenseCount = stats?.ExpenseCount ?? 0,
+                totalExpenses = stats?.TotalExpenses ?? 0
+            };
+        }).ToList();
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Gets only inactive users with their expense statistics
+    /// </summary>
+    [HttpGet("users-with-stats/inactive")]
+    public async Task<ActionResult> GetInactiveUsersWithStats()
+    {
+        // Get only inactive users from auth database
+        var users = await _authContext.NetUsers.Where(u => !u.IsActive).ToListAsync();
+
+        // Get all user IDs
+        var userIds = users.Select(u => u.Id).ToList();
+
+        // Get all members with their workplace info
+        var members = await _context.WorkplaceMembers
+            .Include(m => m.Workplace)
+            .Where(m => userIds.Contains(m.UserId))
+            .ToListAsync();
+
+        // Get user roles
+        var userRoles = await _authContext.UserRoles.ToListAsync();
+        var roles = await _authContext.Roles.ToListAsync();
+
+        // Get expense statistics for all users
+        var expenseStats = await _context.Expenses
+            .Where(e => userIds.Contains(e.EmployeeUserId))
+            .GroupBy(e => e.EmployeeUserId)
+            .Select(g => new
+            {
+                UserId = g.Key,
+                ExpenseCount = g.Count(),
+                TotalExpenses = g.Sum(e => e.Amount)
+            })
+            .ToListAsync();
+
+        // Combine all data
+        var result = users.Select(user =>
+        {
+            var member = members.FirstOrDefault(m => m.UserId == user.Id);
+            var stats = expenseStats.FirstOrDefault(s => s.UserId == user.Id);
+            var userRole = userRoles.FirstOrDefault(ur => ur.UserId == user.Id);
+            var role = userRole != null ? roles.FirstOrDefault(r => r.Id == userRole.RoleId) : null;
+
+            return new
+            {
+                id = user.Id,
+                name = user.UserName,
+                email = user.Email,
+                role = role?.Name?.ToLower() ?? "employee",
+                workplace = member?.Workplace?.Name ?? "N/A",
+                workplaceId = member?.WorkplaceId,
+                isActive = user.IsActive,
+                status = "inactive",
                 expenseCount = stats?.ExpenseCount ?? 0,
                 totalExpenses = stats?.TotalExpenses ?? 0
             };
@@ -203,6 +266,7 @@ public class WorkplaceMembersController : ControllerBase
             name = user.UserName,
             email = user.Email,
             role = role?.Name?.ToLower() ?? "employee",
+            isActive = user.IsActive,
             createdAt = DateTime.UtcNow, // IdentityUser doesn't have CreatedAt, using current time as fallback
 
             // Memberships
@@ -264,14 +328,33 @@ public class WorkplaceMembersController : ControllerBase
     /// Gets workplaces where the user is a member
     /// </summary>
     [HttpGet("user/{userId}")]
-    public async Task<ActionResult<IEnumerable<WorkplaceMember>>> GetUserWorkplaces(string userId)
+    public async Task<ActionResult<IEnumerable<object>>> GetUserWorkplaces(string userId)
     {
         var memberships = await _context.WorkplaceMembers
             .Where(m => m.UserId == userId)
             .Include(m => m.Workplace)
             .ToListAsync();
 
-        return memberships;
+        // Return simplified object to avoid circular reference
+        var result = memberships.Select(m => new
+        {
+            m.Id,
+            m.WorkplaceId,
+            m.UserId,
+            m.PositionName,
+            m.IsManager,
+            m.CreatedAt,
+            m.CreatedBy,
+            Workplace = m.Workplace != null ? new
+            {
+                m.Workplace.Id,
+                m.Workplace.Name,
+                m.Workplace.Code,
+                m.Workplace.IsActive
+            } : null
+        });
+
+        return Ok(result);
     }
 
     /// <summary>
@@ -303,6 +386,12 @@ public class WorkplaceMembersController : ControllerBase
         if (workplace == null)
         {
             return BadRequest(new { message = "Workplace not found" });
+        }
+
+        // Check if workplace is active
+        if (!workplace.IsActive)
+        {
+            return BadRequest(new { message = "Cannot add user to inactive workplace" });
         }
 
         // Check if already a member
@@ -407,7 +496,78 @@ public class WorkplaceMembersController : ControllerBase
     }
 
     /// <summary>
-    /// Deletes a user and all their related data from the system
+    /// Deactivates a user (soft delete) by setting IsActive to false
+    /// The user and all their data remain in the system but the user cannot log in
+    /// </summary>
+    [HttpPatch("user/{userId}/deactivate")]
+    public async Task<IActionResult> DeactivateUser(string userId)
+    {
+        try
+        {
+            // Check if user exists
+            var user = await _authContext.NetUsers.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            // Check if already inactive
+            if (!user.IsActive)
+            {
+                return BadRequest(new { message = "User is already inactive" });
+            }
+
+            // Set user as inactive
+            user.IsActive = false;
+            await _authContext.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} has been deactivated", userId);
+            return Ok(new { message = "User successfully deactivated" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deactivating user {UserId}", userId);
+            return StatusCode(500, new { message = "An error occurred while deactivating the user" });
+        }
+    }
+
+    /// <summary>
+    /// Reactivates a previously deactivated user by setting IsActive to true
+    /// </summary>
+    [HttpPatch("user/{userId}/reactivate")]
+    public async Task<IActionResult> ReactivateUser(string userId)
+    {
+        try
+        {
+            // Check if user exists
+            var user = await _authContext.NetUsers.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            // Check if already active
+            if (user.IsActive)
+            {
+                return BadRequest(new { message = "User is already active" });
+            }
+
+            // Set user as active
+            user.IsActive = true;
+            await _authContext.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} has been reactivated", userId);
+            return Ok(new { message = "User successfully reactivated" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reactivating user {UserId}", userId);
+            return StatusCode(500, new { message = "An error occurred while reactivating the user" });
+        }
+    }
+
+    /// <summary>
+    /// Deletes a user and all their related data from the system (LEGACY - use deactivate instead)
     /// This includes: WorkplaceMembers, Expenses, ExpenseApprovals, Invitations, and Identity user
     /// </summary>
     [HttpDelete("user/{userId}")]
@@ -459,7 +619,7 @@ public class WorkplaceMembersController : ControllerBase
 
             // Also need to get user's email to cancel invitations sent TO this user
             var invitationsSentToUser = await _context.Invitations
-                .Where(i => i.InviteeEmail == user.Email)
+                .Where(i => i.Email == user.Email)
                 .ToListAsync();
 
             foreach (var invitation in invitationsSentToUser)
@@ -496,6 +656,123 @@ public class WorkplaceMembersController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while deleting the user" });
         }
     }
+
+    /// <summary>
+    /// Changes the role of a user
+    /// </summary>
+    [HttpPatch("user/{userId}/role")]
+    public async Task<ActionResult> ChangeUserRole(string userId, [FromBody] ChangeRoleRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RoleId))
+        {
+            return BadRequest(new { message = "Role ID is required" });
+        }
+
+        try
+        {
+            // Check if user exists
+            var user = await _authContext.NetUsers.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            // Check if role exists
+            var role = await _authContext.Roles.FirstOrDefaultAsync(r => r.Id == request.RoleId);
+            if (role == null)
+            {
+                return NotFound(new { message = "Role not found" });
+            }
+
+            // Remove existing role assignments for this user
+            var existingRoles = _authContext.UserRoles.Where(ur => ur.UserId == userId);
+            _authContext.UserRoles.RemoveRange(existingRoles);
+
+            // Add new role
+            _authContext.UserRoles.Add(new IdentityUserRole<string>
+            {
+                UserId = userId,
+                RoleId = request.RoleId
+            });
+
+            await _authContext.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} role changed to {RoleName}", userId, role.Name);
+            return Ok(new { message = $"User role changed to {role.Name}" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error changing role for user {UserId}", userId);
+            return StatusCode(500, new { message = "An error occurred while changing user role" });
+        }
+    }
+
+    /// <summary>
+    /// Adds a user to a workplace
+    /// </summary>
+    [HttpPost("user/{userId}/workplace")]
+    public async Task<ActionResult> AddUserToWorkplace(string userId, [FromBody] AddUserToWorkplaceRequest request)
+    {
+        if (request.WorkplaceId == Guid.Empty)
+        {
+            return BadRequest(new { message = "Workplace ID is required" });
+        }
+
+        try
+        {
+            // Check if user exists
+            var user = await _authContext.NetUsers.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            // Check if workplace exists
+            var workplace = await _context.Workplaces.FindAsync(request.WorkplaceId);
+            if (workplace == null)
+            {
+                return NotFound(new { message = "Workplace not found" });
+            }
+
+            // Check if workplace is active
+            if (!workplace.IsActive)
+            {
+                return BadRequest(new { message = "Cannot add user to inactive workplace" });
+            }
+
+            // Check if user is already a member
+            var existingMember = await _context.WorkplaceMembers
+                .FirstOrDefaultAsync(m => m.WorkplaceId == request.WorkplaceId && m.UserId == userId);
+
+            if (existingMember != null)
+            {
+                return BadRequest(new { message = "User is already a member of this workplace" });
+            }
+
+            // Create new membership
+            var member = new WorkplaceMember
+            {
+                Id = Guid.NewGuid(),
+                WorkplaceId = request.WorkplaceId,
+                UserId = userId,
+                PositionName = request.PositionName,
+                IsManager = request.IsManager,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "system"
+            };
+
+            _context.WorkplaceMembers.Add(member);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} added to workplace {WorkplaceName}", userId, workplace.Name);
+            return Ok(new { message = $"User added to {workplace.Name}" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding user {UserId} to workplace", userId);
+            return StatusCode(500, new { message = "An error occurred while adding user to workplace" });
+        }
+    }
 }
 
 // DTOs
@@ -511,4 +788,16 @@ public class UpdateWorkplaceMemberDto
 {
     public string? PositionName { get; set; }
     public bool IsManager { get; set; }
+}
+
+public class ChangeRoleRequest
+{
+    public string RoleId { get; set; } = string.Empty;
+}
+
+public class AddUserToWorkplaceRequest
+{
+    public Guid WorkplaceId { get; set; }
+    public string? PositionName { get; set; }
+    public bool IsManager { get; set; } = false;
 }

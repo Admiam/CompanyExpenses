@@ -135,11 +135,32 @@ export interface UpdateWorkplaceLimitRequest {
 
 export interface CreateWorkplaceRequest {
   name: string;
-  description?: string;
-  address?: string;
+  code?: string;
+  isActive?: boolean;
 }
 
-export type UpdateWorkplaceRequest = Partial<CreateWorkplaceRequest>;
+export interface UpdateWorkplaceRequest {
+  id: string;
+  name: string;
+  code?: string;
+  isActive: boolean;
+}
+
+export interface WorkplaceDependencies {
+  workplaceId: string;
+  membersCount: number;
+  limitsCount: number;
+  invitationsCount: number;
+  expensesCount: number;
+  canDelete: boolean;
+}
+
+export interface CategoryDependencies {
+  categoryId: string;
+  expensesCount: number;
+  limitsCount: number;
+  canDelete: boolean;
+}
 
 // WorkplaceMember types
 export interface WorkplaceMember {
@@ -173,6 +194,7 @@ export interface UserWithStats {
   role: "admin" | "manager" | "employee";
   workplace: string;
   workplaceId?: string;
+  isActive: boolean;
   status: string;
   expenseCount: number;
   totalExpenses: number;
@@ -233,6 +255,7 @@ export interface UserDetail {
   name: string;
   email: string;
   role: string;
+  isActive: boolean;
   createdAt: string;
   memberships: UserMembership[];
   expenses: UserExpense[];
@@ -305,4 +328,51 @@ export type UpdateExpenseCategoryRequest = Partial<CreateExpenseCategoryRequest>
 export interface Role {
   id: string;
   name: string;
+}
+
+// Dashboard statistics types
+export interface DashboardStats {
+  totalExpenses: number;
+  monthlyExpenses: number;
+  monthlyChange: number;
+  workplacesCount: number;
+  usersCount: number;
+  pendingExpensesCount: number;
+  expensesByCategory: CategoryExpense[];
+  expensesByWorkplace: WorkplaceExpense[];
+  recentExpenses: RecentExpense[];
+}
+
+export interface CategoryExpense {
+  categoryId: string;
+  categoryName: string;
+  categoryColor?: string;
+  total: number;
+  count: number;
+}
+
+export interface WorkplaceExpense {
+  workplaceId: string;
+  workplaceName: string;
+  total: number;
+  count: number;
+  categories: {
+    categoryId: string;
+    categoryName: string;
+    categoryColor?: string;
+    total: number;
+  }[];
+}
+
+export interface RecentExpense {
+  id: string;
+  description: string;
+  amount: number;
+  currency: string;
+  expenseDate: string;
+  status: string;
+  employeeUserId: string;
+  categoryName?: string;
+  workplaceName?: string;
+  submittedAt: string;
 }

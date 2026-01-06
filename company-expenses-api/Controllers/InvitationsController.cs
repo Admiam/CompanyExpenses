@@ -278,9 +278,9 @@ public class InvitationsController : ControllerBase
     }
 
     /// <summary>
-    /// Cancels an invitation
+    /// Cancels an invitation (sets status to Cancelled)
     /// </summary>
-    [HttpDelete("{id}")]
+    [HttpPatch("{id}/cancel")]
     public async Task<IActionResult> CancelInvitation(Guid id)
     {
         var invitation = await _context.Invitations.FindAsync(id);
@@ -291,6 +291,25 @@ public class InvitationsController : ControllerBase
         }
 
         invitation.Status = InvitationStatus.Cancelled;
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Deletes an invitation permanently from the database
+    /// </summary>
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteInvitation(Guid id)
+    {
+        var invitation = await _context.Invitations.FindAsync(id);
+
+        if (invitation == null)
+        {
+            return NotFound();
+        }
+
+        _context.Invitations.Remove(invitation);
         await _context.SaveChangesAsync();
 
         return NoContent();

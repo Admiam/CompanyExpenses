@@ -145,7 +145,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
   useEffect(() => {
     if (userDetail) {
       // Initialize selected workplaces based on user's current memberships
-      const memberWorkplaceIds = new Set(userDetail.memberships.map((m) => m.workplaceId));
+      const memberWorkplaceIds = new Set(userDetail.memberships?.map((m) => m.workplaceId) ?? []);
       setSelectedWorkplaceIds(memberWorkplaceIds);
     }
   }, [userDetail]);
@@ -211,13 +211,13 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
       setIsSavingWorkplaces(true);
 
       // Current memberships
-      const currentWorkplaceIds = new Set(userDetail.memberships.map((m) => m.workplaceId));
+      const currentWorkplaceIds = new Set(userDetail.memberships?.map((m) => m.workplaceId) ?? []);
 
       // Find workplaces to add (selected but not in current memberships)
       const toAdd = Array.from(selectedWorkplaceIds).filter((id) => !currentWorkplaceIds.has(id));
 
       // Find workplaces to remove (in current memberships but not selected)
-      const toRemove = userDetail.memberships.filter((m) => !selectedWorkplaceIds.has(m.workplaceId));
+      const toRemove = (userDetail.memberships ?? []).filter((m) => !selectedWorkplaceIds.has(m.workplaceId));
 
       // Add new memberships
       for (const workplaceId of toAdd) {
@@ -386,8 +386,8 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{userDetail.expenseStats.total.toLocaleString("cs-CZ")} Kč</div>
-                  <p className="text-xs text-muted-foreground">{userDetail.expenseStats.count} výdajů</p>
+                  <div className="text-2xl font-bold">{(userDetail.expenseStats?.total ?? 0).toLocaleString("cs-CZ")} Kč</div>
+                  <p className="text-xs text-muted-foreground">{userDetail.expenseStats?.count ?? 0} výdajů</p>
                 </CardContent>
               </Card>
 
@@ -397,8 +397,8 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{userDetail.memberships.length}</div>
-                  <p className="text-xs text-muted-foreground">{userDetail.memberships.filter((m) => m.isManager).length} jako manager</p>
+                  <div className="text-2xl font-bold">{userDetail.memberships?.length ?? 0}</div>
+                  <p className="text-xs text-muted-foreground">{userDetail.memberships?.filter((m) => m.isManager).length ?? 0} jako manager</p>
                 </CardContent>
               </Card>
 
@@ -408,9 +408,9 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                   <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{userDetail.approvalStats.count}</div>
+                  <div className="text-2xl font-bold">{userDetail.approvalStats?.count ?? 0}</div>
                   <p className="text-xs text-muted-foreground">
-                    {userDetail.approvalStats.approved} schváleno, {userDetail.approvalStats.rejected} zamítnuto
+                    {userDetail.approvalStats?.approved ?? 0} schváleno, {userDetail.approvalStats?.rejected ?? 0} zamítnuto
                   </p>
                 </CardContent>
               </Card>
@@ -421,9 +421,9 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{userDetail.invitationStats.count}</div>
+                  <div className="text-2xl font-bold">{userDetail.invitationStats?.count ?? 0}</div>
                   <p className="text-xs text-muted-foreground">
-                    {userDetail.invitationStats.accepted} přijato, {userDetail.invitationStats.pending} čeká
+                    {userDetail.invitationStats?.accepted ?? 0} přijato, {userDetail.invitationStats?.pending ?? 0} čeká
                   </p>
                 </CardContent>
               </Card>
@@ -432,10 +432,10 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
             {/* Tabs with detailed data */}
             <Tabs defaultValue="expenses" className="space-y-4">
               <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="expenses">Výdaje ({userDetail.expenses.length})</TabsTrigger>
-                <TabsTrigger value="memberships">Pracoviště ({userDetail.memberships.length})</TabsTrigger>
-                <TabsTrigger value="approvals">Schválení ({userDetail.approvals.length})</TabsTrigger>
-                <TabsTrigger value="invitations">Pozvánky ({userDetail.invitations.length})</TabsTrigger>
+                <TabsTrigger value="expenses">Výdaje ({userDetail.expenses?.length ?? 0})</TabsTrigger>
+                <TabsTrigger value="memberships">Pracoviště ({userDetail.memberships?.length ?? 0})</TabsTrigger>
+                <TabsTrigger value="approvals">Schválení ({userDetail.approvals?.length ?? 0})</TabsTrigger>
+                <TabsTrigger value="invitations">Pozvánky ({userDetail.invitations?.length ?? 0})</TabsTrigger>
               </TabsList>
 
               {/* Expenses Tab */}
@@ -446,13 +446,13 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                     <CardDescription>Všechny výdaje vytvořené tímto uživatelem</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {userDetail.expenses.length === 0 ? (
+                    {(userDetail.expenses?.length ?? 0) === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">Žádné výdaje</div>
                     ) : (
                       <>
                         {/* Expense Stats by Status */}
                         <div className="mb-4 grid gap-4 md:grid-cols-3">
-                          {userDetail.expenseStats.byStatus.map((stat) => (
+                          {(userDetail.expenseStats?.byStatus ?? []).map((stat) => (
                             <Card key={stat.status}>
                               <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
@@ -484,7 +484,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {userDetail.expenses.map((expense) => (
+                            {(userDetail.expenses ?? []).map((expense) => (
                               <TableRow key={expense.id}>
                                 <TableCell>{new Date(expense.expenseDate).toLocaleDateString("cs-CZ")}</TableCell>
                                 <TableCell>
@@ -518,7 +518,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                     <CardDescription>Pracoviště, na kterých je uživatel členem</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {userDetail.memberships.length === 0 ? (
+                    {(userDetail.memberships?.length ?? 0) === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">Žádná členství</div>
                     ) : (
                       <Table>
@@ -531,7 +531,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {userDetail.memberships.map((membership) => (
+                          {(userDetail.memberships ?? []).map((membership) => (
                             <TableRow key={membership.id}>
                               <TableCell className="font-medium">{membership.workplaceName}</TableCell>
                               <TableCell>{membership.positionName || "—"}</TableCell>
@@ -563,7 +563,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                     <CardDescription>Výdaje schválené nebo zamítnuté tímto uživatelem</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {userDetail.approvals.length === 0 ? (
+                    {(userDetail.approvals?.length ?? 0) === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">Žádná schválení</div>
                     ) : (
                       <Table>
@@ -578,7 +578,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {userDetail.approvals.map((approval) => (
+                          {(userDetail.approvals ?? []).map((approval) => (
                             <TableRow key={approval.id}>
                               <TableCell>{new Date(approval.createdAt).toLocaleDateString("cs-CZ")}</TableCell>
                               <TableCell>
@@ -592,7 +592,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                               </TableCell>
                               <TableCell>{approval.categoryName}</TableCell>
                               <TableCell className="text-right font-medium">
-                                {approval.expenseAmount.toLocaleString("cs-CZ")} {approval.expenseCurrency}
+                                {approval.expenseAmount?.toLocaleString("cs-CZ") ?? 0} {approval.expenseCurrency ?? "CZK"}
                               </TableCell>
                               <TableCell>
                                 <div className="max-w-xs truncate">{approval.note || "—"}</div>
@@ -614,7 +614,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                     <CardDescription>Pozvánky vytvořené tímto uživatelem</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {userDetail.invitations.length === 0 ? (
+                    {(userDetail.invitations?.length ?? 0) === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">Žádné pozvánky</div>
                     ) : (
                       <Table>
@@ -629,7 +629,7 @@ export function UserDetailModal({ open, onOpenChange, userId, onUserDeleted }: U
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {userDetail.invitations.map((invitation) => (
+                          {(userDetail.invitations ?? []).map((invitation) => (
                             <TableRow key={invitation.id}>
                               <TableCell className="font-medium">{invitation.email}</TableCell>
                               <TableCell>{invitation.workplaceName || "—"}</TableCell>

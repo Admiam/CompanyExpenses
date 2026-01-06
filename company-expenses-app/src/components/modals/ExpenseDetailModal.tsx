@@ -73,6 +73,12 @@ const actionColors = {
   ReturnedForRevision: "text-orange-600",
 };
 
+const actionLabels = {
+  Approved: "Schváleno",
+  Rejected: "Zamítnuto",
+  ReturnedForRevision: "Vráceno k úpravě",
+};
+
 const getActionLabel = (action: string, t: (key: string) => string) => {
   const labels: Record<string, string> = {
     Approved: t("expenses.status.approved"),
@@ -149,7 +155,7 @@ export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDet
     if (!expense) return;
 
     try {
-      const categories = await categoriesApi.getCategoriesForWorkplace(expense.workplaceId);
+      const categories = await categoriesApi.getActiveCategories();
       setAvailableCategories(categories as any);
       setEditedCategoryId(expense.categoryId);
       setIsEditingCategory(true);

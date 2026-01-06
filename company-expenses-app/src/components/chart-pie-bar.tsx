@@ -22,10 +22,15 @@ export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
       label: t("common.amount"),
     },
   } satisfies ChartConfig;
+
+  // Safe data with fallbacks
+  const safeWorkplaceData = workplaceData ?? [];
+  const safeCategoryData = categoryData ?? [];
+
   // Get all unique categories for the stacked bar chart
   const allCategories = new Map<string, { name: string; color: string }>();
-  workplaceData.forEach((workplace) => {
-    workplace.categories.forEach((cat) => {
+  safeWorkplaceData.forEach((workplace) => {
+    (workplace.categories ?? []).forEach((cat) => {
       if (!allCategories.has(cat.categoryId)) {
         allCategories.set(cat.categoryId, {
           name: cat.categoryName,
@@ -36,12 +41,12 @@ export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
   });
 
   // Transform data for stacked bar chart
-  const barData = workplaceData.slice(0, 10).map((workplace) => {
+  const barData = safeWorkplaceData.slice(0, 10).map((workplace) => {
     const dataPoint: any = {
       name: workplace.workplaceName,
     };
     // Add each category as a separate property
-    workplace.categories.forEach((cat) => {
+    (workplace.categories ?? []).forEach((cat) => {
       dataPoint[cat.categoryName] = cat.total;
     });
     return dataPoint;
@@ -57,7 +62,7 @@ export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
   });
 
   // Transform data for pie chart with colors from database
-  const pieData = categoryData.map((item, index) => ({
+  const pieData = safeCategoryData.map((item, index) => ({
     name: item.categoryName,
     value: item.total,
     fill: item.categoryColor || chartColors[index % chartColors.length],

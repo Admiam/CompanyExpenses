@@ -13,6 +13,8 @@ public class ExpenseAttachmentsController : ControllerBase
     private readonly ILogger<ExpenseAttachmentsController> _logger;
     private readonly IConfiguration _configuration;
     private readonly string _uploadPath;
+    private readonly long _maxFileSizeBytes;
+    private readonly string[] _allowedFileTypes;
 
     public ExpenseAttachmentsController(
         AppDbContext context,
@@ -26,6 +28,14 @@ public class ExpenseAttachmentsController : ControllerBase
         // Configure upload path
         _uploadPath = _configuration["FileStorage:UploadPath"]
             ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads", "receipts");
+
+        // Configure file size limit (default 10 MB)
+        _maxFileSizeBytes = _configuration.GetValue<long>("FileStorage:MaxFileSizeBytes", 10_485_760);
+
+        // Configure allowed file types
+        var allowedTypesConfig = _configuration["FileStorage:AllowedFileTypes"]
+            ?? "image/jpeg,image/jpg,image/png,image/gif";
+        _allowedFileTypes = allowedTypesConfig.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
         // Ensure directory exists
         Directory.CreateDirectory(_uploadPath);
@@ -72,7 +82,7 @@ public class ExpenseAttachmentsController : ControllerBase
     /// Upload attachment for an expense
     /// </summary>
     [HttpPost]
-    [RequestSizeLimit(10_485_760)] // 10 MB limit
+    [DisableRequestSizeLimit] // Limit is checked programmatically based on configuration
     public async Task<ActionResult<ExpenseAttachmentDto>> UploadAttachment(
         Guid expenseId,
         [FromForm] IFormFile file,
@@ -93,15 +103,15 @@ public class ExpenseAttachmentsController : ControllerBase
                 return BadRequest(new { message = "No file provided" });
             }
 
-            // Validate file size (10 MB)
-            if (file.Length > 10_485_760)
+            // Validate file size using configured limit
+            if (file.Length > _maxFileSizeBytes)
             {
-                return BadRequest(new { message = "File size exceeds 10 MB limit" });
+                var maxSizeMB = _maxFileSizeBytes / (1024 * 1024);
+                return BadRequest(new { message = $"File size exceeds {maxSizeMB} MB limit" });
             }
 
-            // Validate file type (images only)
-            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif" };
-            if (!allowedTypes.Contains(file.ContentType.ToLower()))
+            // Validate file type using configured allowed types
+            if (!_allowedFileTypes.Contains(file.ContentType.ToLower()))
             {
                 return BadRequest(new { message = "Invalid file type. Only images (JPEG, PNG, GIF) are allowed." });
             }

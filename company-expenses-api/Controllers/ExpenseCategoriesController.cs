@@ -1,192 +1,170 @@
-using CompanyExpenses.Database.Data;
-using CompanyExpenses.Models.Entities;
+using CompanyExpenses.Services.Common;
+using CompanyExpenses.Services.DTOs;
+using CompanyExpenses.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace CompanyExpenses.Api.Controllers;
 
+/// <summary>
+/// Controller for expense category management - refactored to use Service layer
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class ExpenseCategoriesController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IExpenseCategoryService _categoryService;
+    private readonly ILogger<ExpenseCategoriesController> _logger;
 
-    public ExpenseCategoriesController(AppDbContext context)
+    public ExpenseCategoriesController(
+        IExpenseCategoryService categoryService,
+        ILogger<ExpenseCategoriesController> logger)
     {
-        _context = context;
+        _categoryService = categoryService;
+        _logger = logger;
     }
 
+    /// <summary>
+    /// Get all categories
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ExpenseCategory>>> GetCategories()
+    public async Task<ActionResult> GetCategories()
     {
-        return await _context.ExpenseCategories
-            .ToListAsync();
+        var result = await _categoryService.GetAllCategoriesAsync();
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Získá kategorie, které mají aktivní limit pro dané pracoviště
+    /// Get active categories
     /// </summary>
-    [HttpGet("workplace/{workplaceId}")]
-    public async Task<ActionResult<IEnumerable<object>>> GetCategoriesForWorkplace(Guid workplaceId)
+    [HttpGet("active")]
+    public async Task<ActionResult> GetActiveCategories()
     {
-        var categories = await _context.WorkplaceLimits
-            .Include(wl => wl.Category)
-            .Where(wl => wl.WorkplaceId == workplaceId && wl.IsActive)
-            .Select(wl => new
-            {
-                id = wl.CategoryId,
-                name = wl.Category!.Name,
-                limitAmount = wl.LimitAmount,
-                periodFrom = wl.PeriodFrom,
-                periodTo = wl.PeriodTo
-            })
-            .Distinct()
-            .ToListAsync();
-
-        return Ok(categories);
+        var result = await _categoryService.GetActiveCategoriesAsync();
+        return HandleResult(result);
     }
 
+    /// <summary>
+    /// Get category by ID
+    /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<ExpenseCategory>> GetCategory(Guid id)
+    public async Task<ActionResult> GetCategory(Guid id)
     {
-        var category = await _context.ExpenseCategories.FindAsync(id);
-
-        if (category == null)
-        {
-            return NotFound();
-        }
-
-        return category;
-    }
-
-    [HttpPost]
-    public async Task<ActionResult<ExpenseCategory>> CreateCategory(ExpenseCategory category)
-    {
-        category.Id = Guid.NewGuid();
-
-        _context.ExpenseCategories.Add(category);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
-    }
-
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateCategory(Guid id, ExpenseCategory category)
-    {
-        if (id != category.Id)
-        {
-            return BadRequest();
-        }
-
-        _context.Entry(category).State = EntityState.Modified;
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await _context.ExpenseCategories.AnyAsync(e => e.Id == id))
-            {
-                return NotFound();
-            }
-            throw;
-        }
-
-        return NoContent();
+        var result = await _categoryService.GetCategoryByIdAsync(id);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Získá informace o závislostech kategorie (výdaje a limity)
+    /// Create a new category
     /// </summary>
-    [HttpGet("{id}/dependencies")]
-    public async Task<ActionResult<CategoryDependenciesDto>> GetCategoryDependencies(Guid id)
+    [HttpPost]
+    public async Task<ActionResult> CreateCategory([FromBody] CreateExpenseCategoryDto dto)
     {
-        var category = await _context.ExpenseCategories.FindAsync(id);
-        if (category == null)
+        var userId = GetCurrentUserId() ?? "system";
+        var result = await _categoryService.CreateCategoryAsync(dto, userId);
+
+        if (result.IsSuccess && result.Data != null)
         {
-            return NotFound();
+            return CreatedAtAction(nameof(GetCategory), new { id = result.Data.Id }, result.Data);
         }
 
-        var expensesCount = await _context.Expenses.CountAsync(e => e.CategoryId == id);
-        var limitsCount = await _context.WorkplaceLimits.CountAsync(l => l.CategoryId == id);
-
-        return Ok(new CategoryDependenciesDto
-        {
-            CategoryId = id,
-            ExpensesCount = expensesCount,
-            LimitsCount = limitsCount,
-            CanDelete = expensesCount == 0 && limitsCount == 0
-        });
+        return HandleResult(result);
     }
 
+    /// <summary>
+    /// Update existing category
+    /// </summary>
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateCategory(Guid id, [FromBody] UpdateExpenseCategoryDto dto)
+    {
+        var result = await _categoryService.UpdateCategoryAsync(id, dto);
+        if (result.IsSuccess)
+        {
+            return NoContent();
+        }
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Delete category
+    /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteCategory(Guid id)
     {
-        var category = await _context.ExpenseCategories.FindAsync(id);
-        if (category == null)
+        var result = await _categoryService.DeleteCategoryAsync(id);
+        if (result.IsSuccess)
         {
-            return NotFound();
+            return NoContent();
         }
-
-        // Check dependencies
-        var expensesCount = await _context.Expenses.CountAsync(e => e.CategoryId == id);
-        var limitsCount = await _context.WorkplaceLimits.CountAsync(l => l.CategoryId == id);
-
-        if (expensesCount > 0 || limitsCount > 0)
-        {
-            return BadRequest(new
-            {
-                message = "Cannot delete category with existing dependencies",
-                dependencies = new
-                {
-                    expensesCount,
-                    limitsCount
-                }
-            });
-        }
-
-        _context.ExpenseCategories.Remove(category);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        return HandleResult(result);
     }
 
-    [HttpPatch("deactivate/{id}")]
-    public async Task<IActionResult> DeactivateCategory(Guid id)
-    {
-        var category = await _context.ExpenseCategories.FindAsync(id);
-        if (category == null)
-        {
-            return NotFound();
-        }
-
-        category.IsActive = false;
-        await _context.SaveChangesAsync();
-
-        return NoContent();
-    }
-
+    /// <summary>
+    /// Activate category
+    /// </summary>
     [HttpPatch("activate/{id}")]
     public async Task<IActionResult> ActivateCategory(Guid id)
     {
-        var category = await _context.ExpenseCategories.FindAsync(id);
-        if (category == null)
+        var result = await _categoryService.ActivateCategoryAsync(id);
+        if (result.IsSuccess)
         {
-            return NotFound();
+            return Ok(new { message = "Category activated successfully" });
+        }
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Deactivate category
+    /// </summary>
+    [HttpPatch("deactivate/{id}")]
+    public async Task<IActionResult> DeactivateCategory(Guid id)
+    {
+        var result = await _categoryService.DeactivateCategoryAsync(id);
+        if (result.IsSuccess)
+        {
+            return Ok(new { message = "Category deactivated successfully" });
+        }
+        return HandleResult(result);
+    }
+
+    #region Helper Methods
+
+    private string? GetCurrentUserId()
+    {
+        return User.FindFirstValue(ClaimTypes.NameIdentifier);
+    }
+
+    private ActionResult HandleResult<T>(ServiceResult<T> result)
+    {
+        if (result.IsSuccess)
+        {
+            return Ok(result.Data);
         }
 
-        category.IsActive = true;
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        return result.ErrorType switch
+        {
+            ServiceErrorType.NotFound => NotFound(new { message = result.ErrorMessage }),
+            ServiceErrorType.BadRequest => BadRequest(new { message = result.ErrorMessage }),
+            ServiceErrorType.Unauthorized => Unauthorized(new { message = result.ErrorMessage }),
+            _ => StatusCode(500, new { message = result.ErrorMessage })
+        };
     }
-}
 
-public class CategoryDependenciesDto
-{
-    public Guid CategoryId { get; set; }
-    public int ExpensesCount { get; set; }
-    public int LimitsCount { get; set; }
-    public bool CanDelete { get; set; }
+    private ActionResult HandleResult(ServiceResult result)
+    {
+        if (result.IsSuccess)
+        {
+            return Ok();
+        }
+
+        return result.ErrorType switch
+        {
+            ServiceErrorType.NotFound => NotFound(new { message = result.ErrorMessage }),
+            ServiceErrorType.BadRequest => BadRequest(new { message = result.ErrorMessage }),
+            ServiceErrorType.Unauthorized => Unauthorized(new { message = result.ErrorMessage }),
+            _ => StatusCode(500, new { message = result.ErrorMessage })
+        };
+    }
+
+    #endregion
 }

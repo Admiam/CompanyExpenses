@@ -1,634 +1,235 @@
-using CompanyExpenses.Database.Data;
-using CompanyExpenses.Models.Entities;
-using CompanyExpenses.Models.Enums;
-using CompanyExpenses.Api.DTOs;
-using CompanyExpenses.Api.Services;
-using CompanyExpenses.Api.Data;
+using CompanyExpenses.Services.Common;
+using CompanyExpenses.Services.DTOs;
+using CompanyExpenses.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using ApiDTOs = CompanyExpenses.Api.DTOs;
 
 namespace CompanyExpenses.Api.Controllers;
 
+/// <summary>
+/// Controller for expense management - refactored to use Service layer
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class ExpensesController : ControllerBase
 {
-    private readonly AppDbContext _context;
-    private readonly AuthDbContext _authContext;
+    private readonly IExpenseService _expenseService;
     private readonly ILogger<ExpensesController> _logger;
-    private readonly IImageCompressionService _imageCompressionService;
 
     public ExpensesController(
-        AppDbContext context,
-        AuthDbContext authContext,
-        ILogger<ExpensesController> logger,
-        IImageCompressionService imageCompressionService)
+        IExpenseService expenseService,
+        ILogger<ExpensesController> logger)
     {
-        _context = context;
-        _authContext = authContext;
+        _expenseService = expenseService;
         _logger = logger;
-        _imageCompressionService = imageCompressionService;
     }
 
     /// <summary>
-    /// Získá seznam všech výdajů (s filtrováním)
+    /// Get filtered list of expenses
     /// </summary>
     [HttpGet]
     public async Task<ActionResult> GetExpenses(
         [FromQuery] Guid? workplaceId = null,
         [FromQuery] string? employeeUserId = null,
-        [FromQuery] ExpenseStatus? status = null)
+        [FromQuery] string? status = null)
     {
-        var query = _context.Expenses
-            .Include(e => e.Category)
-            .Include(e => e.Workplace)
-            .AsQueryable();
-
-        if (workplaceId.HasValue)
+        var filter = new ExpenseFilterDto
         {
-            query = query.Where(e => e.WorkplaceId == workplaceId.Value);
-        }
+            WorkplaceId = workplaceId,
+            EmployeeUserId = employeeUserId,
+            Status = status
+        };
 
-        if (!string.IsNullOrEmpty(employeeUserId))
-        {
-            query = query.Where(e => e.EmployeeUserId == employeeUserId);
-        }
-
-        if (status.HasValue)
-        {
-            query = query.Where(e => e.Status == status.Value);
-        }
-
-        var expenses = await query
-            .OrderByDescending(e => e.ExpenseDate)
-            .ToListAsync();
-
-        // Map to DTO to avoid circular references
-        var result = expenses.Select(e => new
-        {
-            id = e.Id,
-            description = e.Description,
-            amount = e.Amount,
-            currency = e.Currency,
-            expenseDate = e.ExpenseDate,
-            status = e.Status.ToString(),
-            employeeUserId = e.EmployeeUserId,
-            workplaceId = e.WorkplaceId,
-            categoryId = e.CategoryId,
-            workplace = e.Workplace != null ? new { id = e.Workplace.Id, name = e.Workplace.Name } : null,
-            category = e.Category != null ? new { id = e.Category.Id, name = e.Category.Name } : null,
-            submittedAt = e.SubmittedAt,
-            createdAt = e.CreatedAt
-        }).ToList();
-
-        return Ok(result);
+        var result = await _expenseService.GetExpensesAsync(filter);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Získá konkrétní výdaj podle ID
+    /// Get expense by ID
     /// </summary>
     [HttpGet("{id}")]
     public async Task<ActionResult> GetExpense(Guid id)
     {
-        var expense = await _context.Expenses
-            .Include(e => e.Category)
-            .Include(e => e.Workplace)
-            .Include(e => e.Approvals)
-            .Include(e => e.Attachments)
-            .FirstOrDefaultAsync(e => e.Id == id);
-
-        if (expense == null)
-        {
-            return NotFound();
-        }
-
-        // Get user emails from auth database
-        var userIds = expense.Approvals.Select(a => a.ActorUserId).Distinct().ToList();
-        if (expense.LastDecisionBy != null)
-        {
-            userIds.Add(expense.LastDecisionBy);
-        }
-
-        var users = await _authContext.NetUsers
-            .Where(u => userIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => u.Email ?? u.UserName ?? u.Id);
-
-        // Map to DTO with approvals and attachments
-        var result = new
-        {
-            id = expense.Id,
-            description = expense.Description,
-            amount = expense.Amount,
-            currency = expense.Currency,
-            expenseDate = expense.ExpenseDate,
-            status = expense.Status.ToString(),
-            employeeUserId = expense.EmployeeUserId,
-            workplaceId = expense.WorkplaceId,
-            categoryId = expense.CategoryId,
-            workplace = expense.Workplace != null ? new { id = expense.Workplace.Id, name = expense.Workplace.Name } : null,
-            category = expense.Category != null ? new { id = expense.Category.Id, name = expense.Category.Name } : null,
-            submittedAt = expense.SubmittedAt,
-            createdAt = expense.CreatedAt,
-            lastDecisionAt = expense.LastDecisionAt,
-            lastDecisionBy = expense.LastDecisionBy != null && users.ContainsKey(expense.LastDecisionBy)
-                ? users[expense.LastDecisionBy]
-                : expense.LastDecisionBy,
-            rejectionNote = expense.RejectionNote,
-            attachments = expense.Attachments.Select(a => new
-            {
-                id = a.Id,
-                originalFileName = a.OriginalFileName,
-                dataType = a.DataType,
-                fileSize = a.FileSize,
-                base64Data = a.Base64Data,
-                uploadedAt = a.UploadedAt
-            }).ToList(),
-            approvals = expense.Approvals.Select(a => new
-            {
-                id = a.Id,
-                action = a.Action.ToString(),
-                actorEmail = users.ContainsKey(a.ActorUserId) ? users[a.ActorUserId] : a.ActorUserId,
-                note = a.Note,
-                createdAt = a.CreatedAt
-            }).OrderByDescending(a => a.createdAt).ToList()
-        };
-
-        return Ok(result);
+        var result = await _expenseService.GetExpenseByIdAsync(id);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Vytvoří nový výdaj s přílohami
+    /// Create a new expense with attachments
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<Expense>> CreateExpense([FromBody] CreateExpenseDto dto)
+    public async Task<ActionResult> CreateExpense([FromBody] ApiDTOs.CreateExpenseDto dto)
     {
-        try
+        var userId = GetCurrentUserId();
+        if (userId == null)
         {
-            // Get authenticated user ID
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized(new { message = "User not authenticated" });
-            }
-
-            // Create expense entity
-            var expense = new Expense
-            {
-                Id = Guid.NewGuid(),
-                Description = dto.Description,
-                Amount = dto.Amount,
-                Currency = dto.Currency,
-                ExpenseDate = dto.ExpenseDate,
-                CategoryId = dto.CategoryId,
-                WorkplaceId = dto.WorkplaceId,
-                EmployeeUserId = userId,
-                Status = ExpenseStatus.Pending,
-                SubmittedAt = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = userId
-            };
-
-            _context.Expenses.Add(expense);
-
-            // Process and add attachments
-            if (dto.Attachments != null && dto.Attachments.Any())
-            {
-                foreach (var attachmentDto in dto.Attachments)
-                {
-                    try
-                    {
-                        // Compress image to base64
-                        var (compressedBase64, compressedSize) = await _imageCompressionService
-                            .CompressImageToBase64Async(attachmentDto.Base64Data, attachmentDto.FileType);
-
-                        var attachment = new ExpenseAttachment
-                        {
-                            Id = Guid.NewGuid(),
-                            ExpenseId = expense.Id,
-                            OriginalFileName = attachmentDto.FileName,
-                            StoredFileName = $"{Guid.NewGuid()}{Path.GetExtension(attachmentDto.FileName)}",
-                            DataType = "image/jpeg", // Always JPEG after compression
-                            FileSize = compressedSize,
-                            Base64Data = compressedBase64,
-                            UploadedByUserId = userId,
-                            UploadedAt = DateTime.UtcNow
-                        };
-
-                        _context.ExpenseAttachments.Add(attachment);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to compress attachment: {FileName}", attachmentDto.FileName);
-                        // Continue with other attachments
-                    }
-                }
-            }
-
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Expense created: {ExpenseId} by user {UserId}", expense.Id, userId);
-
-            // Return simple response to avoid circular reference issues
-            return CreatedAtAction(nameof(GetExpense), new { id = expense.Id }, new
-            {
-                id = expense.Id,
-                description = expense.Description,
-                amount = expense.Amount,
-                currency = expense.Currency,
-                expenseDate = expense.ExpenseDate,
-                status = expense.Status.ToString(),
-                attachmentsCount = dto.Attachments?.Count ?? 0
-            });
+            return Unauthorized(new { message = "User not authenticated" });
         }
-        catch (Exception ex)
+
+        // Map to service DTO
+        var serviceDto = new CreateExpenseDto
         {
-            _logger.LogError(ex, "Failed to create expense");
-            return StatusCode(500, new { message = "Failed to create expense" });
+            Description = dto.Description,
+            Amount = dto.Amount,
+            Currency = dto.Currency,
+            ExpenseDate = dto.ExpenseDate,
+            CategoryId = dto.CategoryId,
+            WorkplaceId = dto.WorkplaceId,
+            Attachments = dto.Attachments?.Select(a => new AttachmentUploadDto
+            {
+                FileName = a.FileName,
+                FileType = a.FileType,
+                Base64Data = a.Base64Data
+            }).ToList()
+        };
+
+        var result = await _expenseService.CreateExpenseAsync(serviceDto, userId);
+
+        if (result.IsSuccess && result.Data != null)
+        {
+            return CreatedAtAction(nameof(GetExpense), new { id = result.Data.Id }, result.Data);
         }
+
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Aktualizuje částku výdaje (pouze pro Pending výdaje)
+    /// Update expense amount (only for Pending expenses)
     /// </summary>
     [HttpPatch("{id}/amount")]
-    public async Task<IActionResult> UpdateExpenseAmount(Guid id, [FromBody] UpdateAmountRequest request)
+    public async Task<IActionResult> UpdateExpenseAmount(Guid id, [FromBody] ApiDTOs.UpdateAmountRequest request)
     {
-        var expense = await _context.Expenses.FindAsync(id);
-        if (expense == null)
-        {
-            return NotFound();
-        }
-
-        // Allow updating only for pending expenses
-        if (expense.Status != ExpenseStatus.Pending)
-        {
-            return BadRequest(new { message = "Lze upravit pouze výdaje čekající na schválení" });
-        }
-
-        expense.Amount = request.Amount;
-        expense.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "Částka byla úspěšně aktualizována" });
+        var result = await _expenseService.UpdateExpenseAmountAsync(id, request.Amount);
+        return HandleResult(result, "Částka byla úspěšně aktualizována");
     }
 
     /// <summary>
-    /// Aktualizuje kategorii výdaje (pouze pro Pending výdaje)
+    /// Update expense category (only for Pending expenses)
     /// </summary>
     [HttpPatch("{id}/category")]
-    public async Task<IActionResult> UpdateExpenseCategory(Guid id, [FromBody] UpdateCategoryRequest request)
+    public async Task<IActionResult> UpdateExpenseCategory(Guid id, [FromBody] ApiDTOs.UpdateCategoryRequest request)
     {
-        var expense = await _context.Expenses
-            .Include(e => e.Workplace)
-            .FirstOrDefaultAsync(e => e.Id == id);
-
-        if (expense == null)
-        {
-            return NotFound();
-        }
-
-        // Allow updating only for pending expenses
-        if (expense.Status != ExpenseStatus.Pending)
-        {
-            return BadRequest(new { message = "Lze upravit pouze výdaje čekající na schválení" });
-        }
-
-        // Verify that category has an active limit for this workplace
-        var hasLimit = await _context.WorkplaceLimits
-            .AnyAsync(wl => wl.WorkplaceId == expense.WorkplaceId
-                         && wl.CategoryId == request.CategoryId
-                         && wl.IsActive);
-
-        if (!hasLimit)
-        {
-            return BadRequest(new { message = "Vybraná kategorie nemá aktivní limit pro toto pracoviště" });
-        }
-
-        expense.CategoryId = request.CategoryId;
-        expense.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "Kategorie byla úspěšně aktualizována" });
+        var result = await _expenseService.UpdateExpenseCategoryAsync(id, request.CategoryId);
+        return HandleResult(result, "Kategorie byla úspěšně aktualizována");
     }
 
     /// <summary>
-    /// Aktualizuje přílohy výdaje (pouze pro Pending výdaje)
+    /// Update expense attachments (only for Pending expenses)
     /// </summary>
     [HttpPatch("{id}/attachments")]
-    public async Task<IActionResult> UpdateExpenseAttachments(Guid id, [FromBody] UpdateAttachmentsRequest request)
+    public async Task<IActionResult> UpdateExpenseAttachments(Guid id, [FromBody] ApiDTOs.UpdateAttachmentsRequest request)
     {
-        var expense = await _context.Expenses
-            .Include(e => e.Attachments)
-            .FirstOrDefaultAsync(e => e.Id == id);
-
-        if (expense == null)
+        var attachments = request.Attachments?.Select(a => new AttachmentUploadDto
         {
-            return NotFound();
-        }
+            FileName = a.FileName,
+            FileType = a.FileType,
+            Base64Data = a.Base64Data
+        }).ToList();
 
-        // Allow updating only for pending expenses
-        if (expense.Status != ExpenseStatus.Pending)
-        {
-            return BadRequest(new { message = "Lze upravit pouze výdaje čekající na schválení" });
-        }
-
-        // Remove old attachments
-        _context.ExpenseAttachments.RemoveRange(expense.Attachments);
-
-        // Add new attachments
-        if (request.Attachments != null && request.Attachments.Count > 0)
-        {
-            foreach (var attachmentDto in request.Attachments)
-            {
-                // Compress image
-                var (compressedBase64, compressedSize) = await _imageCompressionService.CompressImageToBase64Async(
-                    attachmentDto.Base64Data,
-                    attachmentDto.FileType
-                );
-
-                var attachment = new ExpenseAttachment
-                {
-                    Id = Guid.NewGuid(),
-                    ExpenseId = id,
-                    OriginalFileName = attachmentDto.FileName,
-                    DataType = "image/jpeg", // Always JPEG after compression
-                    FileSize = compressedSize,
-                    Base64Data = compressedBase64,
-                    UploadedAt = DateTime.UtcNow
-                };
-
-                _context.ExpenseAttachments.Add(attachment);
-            }
-        }
-
-        expense.UpdatedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "Přílohy byly úspěšně aktualizovány" });
+        var result = await _expenseService.UpdateExpenseAttachmentsAsync(id, attachments);
+        return HandleResult(result, "Přílohy byly úspěšně aktualizovány");
     }
 
     /// <summary>
-    /// Schválí výdaj
+    /// Approve expense
     /// </summary>
     [HttpPost("{id}/approve")]
-    public async Task<IActionResult> ApproveExpense(Guid id, [FromBody] ApprovalRequest? request = null)
+    public async Task<IActionResult> ApproveExpense(Guid id, [FromBody] ApiDTOs.ApprovalRequest? request = null)
     {
-        try
+        var userId = GetCurrentUserId();
+        if (userId == null)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized(new { message = "User not authenticated" });
-            }
-
-            var expense = await _context.Expenses.FindAsync(id);
-            if (expense == null)
-            {
-                return NotFound(new { message = "Expense not found" });
-            }
-
-            expense.Status = ExpenseStatus.Approved;
-            expense.LastDecisionAt = DateTime.UtcNow;
-            expense.LastDecisionBy = userId;
-            expense.UpdatedAt = DateTime.UtcNow;
-
-            // Přidat záznam do historie schvalování
-            var approval = new ExpenseApproval
-            {
-                Id = Guid.NewGuid(),
-                ExpenseId = id,
-                Action = ApprovalAction.Approved,
-                ActorUserId = userId,
-                Note = request?.Note,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = userId
-            };
-
-            _context.ExpenseApprovals.Add(approval);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Expense {ExpenseId} approved by {UserId}", id, userId);
-
-            return Ok(new { message = "Expense approved successfully" });
+            return Unauthorized(new { message = "User not authenticated" });
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to approve expense {ExpenseId}", id);
-            return StatusCode(500, new { message = "Failed to approve expense" });
-        }
+
+        var result = await _expenseService.ApproveExpenseAsync(id, userId, request?.Note);
+        return HandleResult(result, "Expense approved successfully");
     }
 
     /// <summary>
-    /// Zamítne výdaj
+    /// Reject expense
     /// </summary>
     [HttpPost("{id}/reject")]
-    public async Task<IActionResult> RejectExpense(Guid id, [FromBody] ApprovalRequest request)
+    public async Task<IActionResult> RejectExpense(Guid id, [FromBody] ApiDTOs.ApprovalRequest request)
     {
-        try
+        var userId = GetCurrentUserId();
+        if (userId == null)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized(new { message = "User not authenticated" });
-            }
-
-            if (string.IsNullOrWhiteSpace(request?.Note))
-            {
-                return BadRequest(new { message = "Rejection note is required" });
-            }
-
-            var expense = await _context.Expenses.FindAsync(id);
-            if (expense == null)
-            {
-                return NotFound(new { message = "Expense not found" });
-            }
-
-            expense.Status = ExpenseStatus.Rejected;
-            expense.LastDecisionAt = DateTime.UtcNow;
-            expense.LastDecisionBy = userId;
-            expense.RejectionNote = request.Note;
-            expense.UpdatedAt = DateTime.UtcNow;
-
-            var approval = new ExpenseApproval
-            {
-                Id = Guid.NewGuid(),
-                ExpenseId = id,
-                Action = ApprovalAction.Rejected,
-                ActorUserId = userId,
-                Note = request.Note,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = userId
-            };
-
-            _context.ExpenseApprovals.Add(approval);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Expense {ExpenseId} rejected by {UserId}", id, userId);
-
-            return Ok(new { message = "Expense rejected successfully" });
+            return Unauthorized(new { message = "User not authenticated" });
         }
-        catch (Exception ex)
+
+        if (string.IsNullOrWhiteSpace(request?.Note))
         {
-            _logger.LogError(ex, "Failed to reject expense {ExpenseId}", id);
-            return StatusCode(500, new { message = "Failed to reject expense" });
+            return BadRequest(new { message = "Rejection note is required" });
         }
+
+        var result = await _expenseService.RejectExpenseAsync(id, userId, request.Note);
+        return HandleResult(result, "Expense rejected successfully");
     }
 
     /// <summary>
-    /// Smaže výdaj (soft delete)
+    /// Delete expense (soft delete)
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteExpense(Guid id)
     {
-        var expense = await _context.Expenses.FindAsync(id);
-        if (expense == null)
+        var result = await _expenseService.DeleteExpenseAsync(id);
+        if (result.IsSuccess)
         {
-            return NotFound();
+            return NoContent();
         }
-
-        expense.IsDeleted = true;
-        expense.UpdatedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Získá statistiky pro dashboard
+    /// Get dashboard statistics
     /// </summary>
     [HttpGet("dashboard-stats")]
     public async Task<ActionResult> GetDashboardStats()
     {
-        var now = DateTime.UtcNow;
-        var startOfMonth = DateOnly.FromDateTime(new DateTime(now.Year, now.Month, 1));
-        var startOfLastMonth = startOfMonth.AddMonths(-1);
-        var startOfYear = DateOnly.FromDateTime(new DateTime(now.Year, 1, 1));
-        var today = DateOnly.FromDateTime(now);
-
-        // Total expenses (all time, approved)
-        var totalExpenses = await _context.Expenses
-            .Where(e => e.Status == ExpenseStatus.Approved && !e.IsDeleted)
-            .SumAsync(e => e.Amount);
-
-        // Current month expenses
-        var monthlyExpenses = await _context.Expenses
-            .Where(e => e.ExpenseDate >= startOfMonth &&
-                       e.ExpenseDate <= today &&
-                       e.Status == ExpenseStatus.Approved &&
-                       !e.IsDeleted)
-            .SumAsync(e => e.Amount);
-
-        // Last month expenses
-        var lastMonthExpenses = await _context.Expenses
-            .Where(e => e.ExpenseDate >= startOfLastMonth &&
-                       e.ExpenseDate < startOfMonth &&
-                       e.Status == ExpenseStatus.Approved &&
-                       !e.IsDeleted)
-            .SumAsync(e => e.Amount);
-
-        // Calculate monthly change percentage
-        var monthlyChange = lastMonthExpenses > 0
-            ? ((monthlyExpenses - lastMonthExpenses) / lastMonthExpenses) * 100
-            : 0;
-
-        // Active workplaces count
-        var workplacesCount = await _context.Workplaces
-            .Where(w => w.IsActive)
-            .CountAsync();
-
-        // Active users count (from auth database)
-        var usersCount = await _authContext.NetUsers.CountAsync();
-
-        // Pending expenses count
-        var pendingExpensesCount = await _context.Expenses
-            .Where(e => e.Status == ExpenseStatus.Pending && !e.IsDeleted)
-            .CountAsync();
-
-        // Expenses by category (ALL categories)
-        var expensesByCategory = await _context.Expenses
-            .Include(e => e.Category)
-            .Where(e => e.ExpenseDate >= startOfYear &&
-                       e.Status == ExpenseStatus.Approved &&
-                       !e.IsDeleted &&
-                       e.Category != null)
-            .GroupBy(e => new { e.CategoryId, e.Category!.Name, e.Category.Color })
-            .Select(g => new
-            {
-                categoryId = g.Key.CategoryId,
-                categoryName = g.Key.Name,
-                categoryColor = g.Key.Color,
-                total = g.Sum(e => e.Amount),
-                count = g.Count()
-            })
-            .OrderByDescending(x => x.total)
-            .ToListAsync();
-
-        // Expenses by workplace (ALL workplaces) with category breakdown
-        var expensesByWorkplace = await _context.Expenses
-            .Include(e => e.Workplace)
-            .Include(e => e.Category)
-            .Where(e => e.ExpenseDate >= startOfYear &&
-                       e.Status == ExpenseStatus.Approved &&
-                       !e.IsDeleted &&
-                       e.Workplace != null)
-            .GroupBy(e => new { e.WorkplaceId, e.Workplace!.Name })
-            .Select(g => new
-            {
-                workplaceId = g.Key.WorkplaceId,
-                workplaceName = g.Key.Name,
-                total = g.Sum(e => e.Amount),
-                count = g.Count(),
-                categories = g.GroupBy(e => new { e.CategoryId, e.Category!.Name, e.Category.Color })
-                    .Select(cg => new
-                    {
-                        categoryId = cg.Key.CategoryId,
-                        categoryName = cg.Key.Name,
-                        categoryColor = cg.Key.Color,
-                        total = cg.Sum(e => e.Amount)
-                    })
-                    .ToList()
-            })
-            .OrderByDescending(x => x.total)
-            .ToListAsync();
-
-        // Recent expenses (last 10 for better overview)
-        var recentExpenses = await _context.Expenses
-            .Include(e => e.Category)
-            .Include(e => e.Workplace)
-            .Where(e => !e.IsDeleted)
-            .OrderByDescending(e => e.SubmittedAt)
-            .Take(10)
-            .Select(e => new
-            {
-                id = e.Id,
-                description = e.Description,
-                amount = e.Amount,
-                currency = e.Currency,
-                expenseDate = e.ExpenseDate,
-                status = e.Status.ToString(),
-                employeeUserId = e.EmployeeUserId,
-                categoryName = e.Category != null ? e.Category.Name : null,
-                workplaceName = e.Workplace != null ? e.Workplace.Name : null,
-                submittedAt = e.SubmittedAt
-            })
-            .ToListAsync();
-
-        var result = new
-        {
-            totalExpenses,
-            monthlyExpenses,
-            monthlyChange = Math.Round(monthlyChange, 1),
-            workplacesCount,
-            usersCount,
-            pendingExpensesCount,
-            expensesByCategory,
-            expensesByWorkplace,
-            recentExpenses
-        };
-
-        return Ok(result);
+        var result = await _expenseService.GetDashboardStatsAsync();
+        return HandleResult(result);
     }
+
+    #region Helper Methods
+
+    private string? GetCurrentUserId()
+    {
+        return User.FindFirstValue(ClaimTypes.NameIdentifier);
+    }
+
+    private ActionResult HandleResult<T>(ServiceResult<T> result)
+    {
+        if (result.IsSuccess)
+        {
+            return Ok(result.Data);
+        }
+
+        return result.ErrorType switch
+        {
+            ServiceErrorType.NotFound => NotFound(new { message = result.ErrorMessage }),
+            ServiceErrorType.BadRequest => BadRequest(new { message = result.ErrorMessage }),
+            ServiceErrorType.Unauthorized => Unauthorized(new { message = result.ErrorMessage }),
+            _ => StatusCode(500, new { message = result.ErrorMessage })
+        };
+    }
+
+    private ActionResult HandleResult(ServiceResult result, string? successMessage = null)
+    {
+        if (result.IsSuccess)
+        {
+            return Ok(new { message = successMessage ?? "Operation completed successfully" });
+        }
+
+        return result.ErrorType switch
+        {
+            ServiceErrorType.NotFound => NotFound(new { message = result.ErrorMessage }),
+            ServiceErrorType.BadRequest => BadRequest(new { message = result.ErrorMessage }),
+            ServiceErrorType.Unauthorized => Unauthorized(new { message = result.ErrorMessage }),
+            _ => StatusCode(500, new { message = result.ErrorMessage })
+        };
+    }
+
+    #endregion
 }

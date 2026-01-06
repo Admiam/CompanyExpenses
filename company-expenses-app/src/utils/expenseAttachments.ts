@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://localhost:7200";
+import { API_CONFIG, FILE_CONFIG } from "@/lib/app-config";
+
+const API_BASE_URL = API_CONFIG.baseUrl;
 
 export interface ExpenseAttachment {
   id: string;
@@ -83,14 +85,13 @@ export function formatFileSize(bytes: number): string {
  * Validate if file is an allowed image type
  */
 export function isValidImageFile(file: File): boolean {
-  const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
-  return allowedTypes.includes(file.type);
+  return FILE_CONFIG.allowedImageTypes.includes(file.type);
 }
 
 /**
- * Validate file size (max 10 MB)
+ * Validate file size using configured maximum
  */
-export function isValidFileSize(file: File, maxSizeMB: number = 10): boolean {
-  const maxSizeBytes = maxSizeMB * 1024 * 1024;
-  return file.size <= maxSizeBytes;
+export function isValidFileSize(file: File, maxSizeBytes?: number): boolean {
+  const limit = maxSizeBytes ?? FILE_CONFIG.maxFileSizeBytes;
+  return file.size <= limit;
 }

@@ -8,20 +8,33 @@ using Microsoft.Extensions.Options;
 namespace company_expenses_auth.Components.Account
 {
     // This is a server-side AuthenticationStateProvider that revalidates the security stamp for the connected user
-    // every 30 minutes an interactive circuit is connected.
-    internal sealed class IdentityRevalidatingAuthenticationStateProvider(
+    // at configurable interval (default 30 minutes) when an interactive circuit is connected.
+    internal sealed class IdentityRevalidatingAuthenticationStateProvider : RevalidatingServerAuthenticationStateProvider
+    {
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IOptions<IdentityOptions> _options;
+        private readonly TimeSpan _revalidationInterval;
+
+        public IdentityRevalidatingAuthenticationStateProvider(
             ILoggerFactory loggerFactory,
             IServiceScopeFactory scopeFactory,
-            IOptions<IdentityOptions> options)
-        : RevalidatingServerAuthenticationStateProvider(loggerFactory)
-    {
-        protected override TimeSpan RevalidationInterval => TimeSpan.FromMinutes(30);
+            IOptions<IdentityOptions> options,
+            IConfiguration configuration)
+            : base(loggerFactory)
+        {
+            _scopeFactory = scopeFactory;
+            _options = options;
+            var intervalMinutes = configuration.GetValue<int>("AuthenticationSettings:RevalidationIntervalMinutes", 30);
+            _revalidationInterval = TimeSpan.FromMinutes(intervalMinutes);
+        }
+
+        protected override TimeSpan RevalidationInterval => _revalidationInterval;
 
         protected override async Task<bool> ValidateAuthenticationStateAsync(
             AuthenticationState authenticationState, CancellationToken cancellationToken)
         {
             // Get the user manager from a new scope to ensure it fetches fresh data
-            await using var scope = scopeFactory.CreateAsyncScope();
+            await using var scope = _scopeFactory.CreateAsyncScope();
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             return await ValidateSecurityStampAsync(userManager, authenticationState.User);
         }
@@ -39,7 +52,7 @@ namespace company_expenses_auth.Components.Account
             }
             else
             {
-                var principalStamp = principal.FindFirstValue(options.Value.ClaimsIdentity.SecurityStampClaimType);
+                var principalStamp = principal.FindFirstValue(_options.Value.ClaimsIdentity.SecurityStampClaimType);
                 var userStamp = await userManager.GetSecurityStampAsync(user);
                 return principalStamp == userStamp;
             }

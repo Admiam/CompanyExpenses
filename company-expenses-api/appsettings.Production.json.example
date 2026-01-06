@@ -1,0 +1,50 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "",
+    "AuthConnection": ""
+  },
+  "FileStorage": {
+    "UploadPath": "/var/app/uploads/receipts",
+    "MaxFileSizeBytes": 10485760,
+    "AllowedFileTypes": "image/jpeg,image/jpg,image/png,image/gif"
+  },
+  "ImageCompression": {
+    "MaxWidth": 800,
+    "MaxHeight": 800,
+    "JpegQuality": 75
+  },
+  "InvitationSettings": {
+    "ExpirationDays": 7
+  },
+  "CookieSettings": {
+    "Domain": ".your-domain.com",
+    "ExpireTimeSpanHours": 24,
+    "SlidingExpiration": true
+  },
+  "AuthenticationSettings": {
+    "RevalidationIntervalMinutes": 30
+  },
+  "CorsSettings": {
+    "AllowedOrigins": "https://app.your-domain.com"
+  },
+  "EmailSettings": {
+    "SmtpHost": "",
+    "SmtpPort": 587,
+    "SmtpUsername": "",
+    "SmtpPassword": "",
+    "FromEmail": "",
+    "FromName": "Company Expenses",
+    "EnableSsl": true
+  },
+  "AppSettings": {
+    "FrontendUrl": "https://app.your-domain.com",
+    "AuthServerUrl": "https://auth.your-domain.com"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}

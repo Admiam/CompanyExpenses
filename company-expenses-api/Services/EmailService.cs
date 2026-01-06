@@ -7,11 +7,13 @@ public class EmailService : IEmailService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<EmailService> _logger;
+    private readonly int _invitationExpirationDays;
 
     public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
     {
         _configuration = configuration;
         _logger = logger;
+        _invitationExpirationDays = configuration.GetValue<int>("InvitationSettings:ExpirationDays", 7);
     }
 
     public async Task SendInvitationEmailAsync(string email, string token, string? workplaceName)
@@ -36,7 +38,7 @@ public class EmailService : IEmailService
                     </div>
                     <p>Or copy and paste this link into your browser:</p>
                     <p style='word-break: break-all; color: #2563eb;'>{invitationLink}</p>
-                    <p style='margin-top: 20px;'><strong>Note:</strong> This invitation will expire in 7 days.</p>
+                    <p style='margin-top: 20px;'><strong>Note:</strong> This invitation will expire in {_invitationExpirationDays} days.</p>
                     <hr style='margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;'>
                     <p style='font-size: 12px; color: #6b7280;'>
                         If you didn't expect this invitation, please ignore this email.

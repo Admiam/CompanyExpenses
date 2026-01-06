@@ -59,3 +59,22 @@ public class WorkplaceDetailDto
     public List<WorkplaceMemberDto> Members { get; set; } = new();
     public List<WorkplaceLimitDto> Limits { get; set; } = new();
 }
+
+/// <summary>
+/// Request to change user role
+/// </summary>
+public class ChangeRoleRequest
+{
+    public string RoleId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Request to add user to workplace
+/// </summary>
+public class AddToWorkplaceRequest
+{
+    public Guid WorkplaceId { get; set; }
+    public string? PositionName { get; set; }
+    public bool IsManager { get; set; }
+}
+

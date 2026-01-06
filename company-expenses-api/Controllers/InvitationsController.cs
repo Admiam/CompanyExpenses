@@ -1,426 +1,159 @@
-using CompanyExpenses.Database.Data;
-using CompanyExpenses.Models.Entities;
-using CompanyExpenses.Models.Enums;
-using CompanyExpenses.Api.Services;
-using CompanyExpenses.Api.DTOs;
+using CompanyExpenses.Services.Common;
+using CompanyExpenses.Services.DTOs;
+using CompanyExpenses.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
+using System.Security.Claims;
 
 namespace CompanyExpenses.Api.Controllers;
 
+/// <summary>
+/// Controller for invitation management - refactored to use Service layer
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class InvitationsController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IInvitationService _invitationService;
     private readonly ILogger<InvitationsController> _logger;
-    private readonly IEmailService _emailService;
 
-    public InvitationsController(AppDbContext context, ILogger<InvitationsController> logger, IEmailService emailService)
+    public InvitationsController(
+        IInvitationService invitationService,
+        ILogger<InvitationsController> logger)
     {
-        _context = context;
+        _invitationService = invitationService;
         _logger = logger;
-        _emailService = emailService;
     }
 
     /// <summary>
-    /// Gets all invitations (for admin)
+    /// Get all invitations (for admin)
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<InvitationDto>>> GetInvitations()
+    public async Task<ActionResult> GetInvitations()
     {
-        var invitations = await _context.Invitations
-            .Include(i => i.Workplace)
-            .OrderByDescending(i => i.CreatedAt)
-            .ToListAsync();
-
-        return invitations.Select(i => new InvitationDto
-        {
-            Id = i.Id,
-            Email = i.Email,
-            InvitedRoleId = i.InvitedRoleId,
-            WorkplaceId = i.WorkplaceId,
-            Token = i.Token,
-            ExpiresAt = i.ExpiresAt,
-            AcceptedAt = i.AcceptedAt,
-            InvitedByUserId = i.InvitedByUserId,
-            Status = i.Status,
-            CreatedAt = i.CreatedAt,
-            CreatedBy = i.CreatedBy,
-            Workplace = i.Workplace != null ? new InvitationWorkplaceDto
-            {
-                Id = i.Workplace.Id,
-                Name = i.Workplace.Name,
-                Code = i.Workplace.Code,
-                IsActive = i.Workplace.IsActive
-            } : null
-        }).ToList();
+        var result = await _invitationService.GetAllInvitationsAsync();
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Gets invitation by ID
+    /// Get invitation by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<InvitationDto>> GetInvitation(Guid id)
+    public async Task<ActionResult> GetInvitation(Guid id)
     {
-        var invitation = await _context.Invitations
-            .Include(i => i.Workplace)
-            .FirstOrDefaultAsync(i => i.Id == id);
-
-        if (invitation == null)
-        {
-            return NotFound();
-        }
-
-        return new InvitationDto
-        {
-            Id = invitation.Id,
-            Email = invitation.Email,
-            InvitedRoleId = invitation.InvitedRoleId,
-            WorkplaceId = invitation.WorkplaceId,
-            Token = invitation.Token,
-            ExpiresAt = invitation.ExpiresAt,
-            AcceptedAt = invitation.AcceptedAt,
-            InvitedByUserId = invitation.InvitedByUserId,
-            Status = invitation.Status,
-            CreatedAt = invitation.CreatedAt,
-            CreatedBy = invitation.CreatedBy,
-            Workplace = invitation.Workplace != null ? new InvitationWorkplaceDto
-            {
-                Id = invitation.Workplace.Id,
-                Name = invitation.Workplace.Name,
-                Code = invitation.Workplace.Code,
-                IsActive = invitation.Workplace.IsActive
-            } : null
-        };
+        var result = await _invitationService.GetInvitationByIdAsync(id);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Verifies invitation by token (used during registration)
+    /// Verify invitation by token (used during registration)
     /// </summary>
     [HttpGet("verify/{token}")]
-    public async Task<ActionResult<InvitationDto>> VerifyInvitation(string token)
+    public async Task<ActionResult> VerifyInvitation(string token)
     {
-        var invitation = await _context.Invitations
-            .Include(i => i.Workplace)
-            .FirstOrDefaultAsync(i => i.Token == token);
-
-        if (invitation == null)
-        {
-            return NotFound(new { message = "Invitation not found" });
-        }
-
-        if (invitation.Status != InvitationStatus.Pending)
-        {
-            return BadRequest(new { message = "Invitation has already been used" });
-        }
-
-        if (invitation.ExpiresAt < DateTime.UtcNow)
-        {
-            invitation.Status = InvitationStatus.Expired;
-            await _context.SaveChangesAsync();
-            return BadRequest(new { message = "Invitation has expired" });
-        }
-
-        return new InvitationDto
-        {
-            Id = invitation.Id,
-            Email = invitation.Email,
-            InvitedRoleId = invitation.InvitedRoleId,
-            WorkplaceId = invitation.WorkplaceId,
-            Token = invitation.Token,
-            ExpiresAt = invitation.ExpiresAt,
-            AcceptedAt = invitation.AcceptedAt,
-            InvitedByUserId = invitation.InvitedByUserId,
-            Status = invitation.Status,
-            CreatedAt = invitation.CreatedAt,
-            CreatedBy = invitation.CreatedBy,
-            Workplace = invitation.Workplace != null ? new InvitationWorkplaceDto
-            {
-                Id = invitation.Workplace.Id,
-                Name = invitation.Workplace.Name,
-                Code = invitation.Workplace.Code,
-                IsActive = invitation.Workplace.IsActive
-            } : null
-        };
+        var result = await _invitationService.VerifyInvitationAsync(token);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Creates a new invitation
+    /// Create a new invitation
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<InvitationDto>> CreateInvitation(CreateInvitationDto dto)
+    public async Task<ActionResult> CreateInvitation([FromBody] CreateInvitationDto dto)
     {
-        // Check if email is already invited
-        var existingInvitation = await _context.Invitations
-            .FirstOrDefaultAsync(i => i.Email == dto.Email && i.Status == InvitationStatus.Pending);
+        var userId = GetCurrentUserId() ?? "system";
+        var result = await _invitationService.CreateInvitationAsync(dto, userId);
 
-        if (existingInvitation != null)
+        if (result.IsSuccess && result.Data != null)
         {
-            return BadRequest(new { message = "User with this email already has a pending invitation" });
+            return CreatedAtAction(nameof(GetInvitation), new { id = result.Data.Id }, result.Data);
         }
 
-        // Check if workplace exists (if specified)
-        Workplace? workplace = null;
-        if (dto.WorkplaceId.HasValue)
-        {
-            workplace = await _context.Workplaces.FindAsync(dto.WorkplaceId.Value);
-            if (workplace == null)
-            {
-                return BadRequest(new { message = "Workplace not found" });
-            }
-        }
-
-        var invitation = new Invitation
-        {
-            Id = Guid.NewGuid(),
-            Email = dto.Email,
-            InvitedRoleId = dto.InvitedRoleId,
-            WorkplaceId = dto.WorkplaceId,
-            Token = dto.Token ?? GenerateSecureToken(),
-            ExpiresAt = DateTime.UtcNow.AddDays(7), // Valid for 7 days
-            Status = InvitationStatus.Pending,
-            InvitedByUserId = "test-user", // TODO: Získat z authentication
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "test-user"
-        };
-
-        _context.Invitations.Add(invitation);
-        await _context.SaveChangesAsync();
-
-        // Send invitation email
-        try
-        {
-            await _emailService.SendInvitationEmailAsync(invitation.Email, invitation.Token, workplace?.Name);
-            _logger.LogInformation("Created invitation for {Email}, token: {Token}, email sent", dto.Email, invitation.Token);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send invitation email to {Email}", dto.Email);
-            // Continue anyway - invitation is created
-        }
-
-        var invitationDto = new InvitationDto
-        {
-            Id = invitation.Id,
-            Email = invitation.Email,
-            InvitedRoleId = invitation.InvitedRoleId,
-            WorkplaceId = invitation.WorkplaceId,
-            Token = invitation.Token,
-            ExpiresAt = invitation.ExpiresAt,
-            AcceptedAt = invitation.AcceptedAt,
-            InvitedByUserId = invitation.InvitedByUserId,
-            Status = invitation.Status,
-            CreatedAt = invitation.CreatedAt,
-            CreatedBy = invitation.CreatedBy,
-            Workplace = workplace != null ? new InvitationWorkplaceDto
-            {
-                Id = workplace.Id,
-                Name = workplace.Name,
-                Code = workplace.Code,
-                IsActive = workplace.IsActive
-            } : null
-        };
-
-        return CreatedAtAction(nameof(GetInvitation), new { id = invitation.Id }, invitationDto);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Marks invitation as accepted (called after registration is completed)
+    /// Accept invitation
     /// </summary>
     [HttpPost("{id}/accept")]
-    public async Task<IActionResult> AcceptInvitation(Guid id, [FromBody] AcceptInvitationDto dto)
+    public async Task<IActionResult> AcceptInvitation(Guid id)
     {
-        var invitation = await _context.Invitations
-            .Include(i => i.Workplace)
-            .FirstOrDefaultAsync(i => i.Id == id);
-
-        if (invitation == null)
-        {
-            return NotFound();
-        }
-
-        if (invitation.Status != InvitationStatus.Pending)
-        {
-            return BadRequest(new { message = "Invitation has already been used" });
-        }
-
-        if (invitation.ExpiresAt < DateTime.UtcNow)
-        {
-            invitation.Status = InvitationStatus.Expired;
-            await _context.SaveChangesAsync();
-            return BadRequest(new { message = "Invitation has expired" });
-        }
-
-        invitation.Status = InvitationStatus.Accepted;
-        invitation.AcceptedAt = DateTime.UtcNow;
-
-        // If invitation has a workplace assigned, add user as member
-        if (invitation.WorkplaceId.HasValue && !string.IsNullOrEmpty(dto.UserId))
-        {
-            var member = new WorkplaceMember
-            {
-                Id = Guid.NewGuid(),
-                WorkplaceId = invitation.WorkplaceId.Value,
-                UserId = dto.UserId,
-                IsManager = false,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = dto.UserId
-            };
-
-            _context.WorkplaceMembers.Add(member);
-        }
-
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "Invitation successfully accepted" });
+        var userId = GetCurrentUserId() ?? string.Empty;
+        var result = await _invitationService.AcceptInvitationAsync(id, userId);
+        return HandleResult(result, "Invitation accepted successfully");
     }
 
     /// <summary>
-    /// Cancels an invitation (sets status to Cancelled)
+    /// Cancel invitation
     /// </summary>
-    [HttpPatch("{id}/cancel")]
+    [HttpPost("{id}/cancel")]
     public async Task<IActionResult> CancelInvitation(Guid id)
     {
-        var invitation = await _context.Invitations.FindAsync(id);
-
-        if (invitation == null)
-        {
-            return NotFound();
-        }
-
-        invitation.Status = InvitationStatus.Cancelled;
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        var result = await _invitationService.CancelInvitationAsync(id);
+        return HandleResult(result, "Invitation cancelled successfully");
     }
 
     /// <summary>
-    /// Deletes an invitation permanently from the database
+    /// Delete invitation
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteInvitation(Guid id)
     {
-        var invitation = await _context.Invitations.FindAsync(id);
-
-        if (invitation == null)
+        var result = await _invitationService.DeleteInvitationAsync(id);
+        if (result.IsSuccess)
         {
-            return NotFound();
+            return NoContent();
         }
-
-        _context.Invitations.Remove(invitation);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Resends invitation (refreshes token and expiration)
+    /// Resend invitation email
     /// </summary>
     [HttpPost("{id}/resend")]
-    public async Task<ActionResult<InvitationDto>> ResendInvitation(Guid id)
+    public async Task<ActionResult> ResendInvitation(Guid id)
     {
-        var invitation = await _context.Invitations
-            .Include(i => i.Workplace)
-            .FirstOrDefaultAsync(i => i.Id == id);
+        var result = await _invitationService.ResendInvitationAsync(id);
+        return HandleResult(result);
+    }
 
-        if (invitation == null)
+    #region Helper Methods
+
+    private string? GetCurrentUserId()
+    {
+        return User.FindFirstValue(ClaimTypes.NameIdentifier);
+    }
+
+    private ActionResult HandleResult<T>(ServiceResult<T> result)
+    {
+        if (result.IsSuccess)
         {
-            return NotFound();
+            return Ok(result.Data);
         }
 
-        if (invitation.Status == InvitationStatus.Accepted)
+        return result.ErrorType switch
         {
-            return BadRequest(new { message = "Cannot resend an accepted invitation" });
-        }
-
-        // Refresh token and expiration
-        invitation.Token = GenerateSecureToken();
-        invitation.ExpiresAt = DateTime.UtcNow.AddDays(7);
-        invitation.Status = InvitationStatus.Pending;
-
-        await _context.SaveChangesAsync();
-
-        // Send invitation email
-        try
-        {
-            await _emailService.SendInvitationEmailAsync(invitation.Email, invitation.Token, invitation.Workplace?.Name);
-            _logger.LogInformation("Resent invitation for {Email}, new token: {Token}, email sent", invitation.Email, invitation.Token);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send invitation email to {Email}", invitation.Email);
-            // Continue anyway - invitation is updated
-        }
-
-        return new InvitationDto
-        {
-            Id = invitation.Id,
-            Email = invitation.Email,
-            InvitedRoleId = invitation.InvitedRoleId,
-            WorkplaceId = invitation.WorkplaceId,
-            Token = invitation.Token,
-            ExpiresAt = invitation.ExpiresAt,
-            AcceptedAt = invitation.AcceptedAt,
-            InvitedByUserId = invitation.InvitedByUserId,
-            Status = invitation.Status,
-            CreatedAt = invitation.CreatedAt,
-            CreatedBy = invitation.CreatedBy,
-            Workplace = invitation.Workplace != null ? new InvitationWorkplaceDto
-            {
-                Id = invitation.Workplace.Id,
-                Name = invitation.Workplace.Name,
-                Code = invitation.Workplace.Code,
-                IsActive = invitation.Workplace.IsActive
-            } : null
+            ServiceErrorType.NotFound => NotFound(new { message = result.ErrorMessage }),
+            ServiceErrorType.BadRequest => BadRequest(new { message = result.ErrorMessage }),
+            ServiceErrorType.Unauthorized => Unauthorized(new { message = result.ErrorMessage }),
+            _ => StatusCode(500, new { message = result.ErrorMessage })
         };
     }
 
-    private static string GenerateSecureToken()
+    private ActionResult HandleResult(ServiceResult result, string? successMessage = null)
     {
-        var randomBytes = new byte[32];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(randomBytes);
-        return Convert.ToBase64String(randomBytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
+        if (result.IsSuccess)
+        {
+            return Ok(new { message = successMessage ?? "Operation completed successfully" });
+        }
+
+        return result.ErrorType switch
+        {
+            ServiceErrorType.NotFound => NotFound(new { message = result.ErrorMessage }),
+            ServiceErrorType.BadRequest => BadRequest(new { message = result.ErrorMessage }),
+            ServiceErrorType.Unauthorized => Unauthorized(new { message = result.ErrorMessage }),
+            _ => StatusCode(500, new { message = result.ErrorMessage })
+        };
     }
-}
 
-// DTOs
-public class InvitationDto
-{
-    public Guid Id { get; set; }
-    public string Email { get; set; } = string.Empty;
-    public string? InvitedRoleId { get; set; }
-    public Guid? WorkplaceId { get; set; }
-    public string Token { get; set; } = string.Empty;
-    public DateTime ExpiresAt { get; set; }
-    public DateTime? AcceptedAt { get; set; }
-    public string InvitedByUserId { get; set; } = string.Empty;
-    public InvitationStatus Status { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public string CreatedBy { get; set; } = string.Empty;
-    public InvitationWorkplaceDto? Workplace { get; set; }
-}
-
-public class InvitationWorkplaceDto
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string? Code { get; set; }
-    public bool IsActive { get; set; }
-}
-
-public class CreateInvitationDto
-{
-    public string Email { get; set; } = string.Empty;
-    public string? InvitedRoleId { get; set; }
-    public string? Token { get; set; }
-    public Guid? WorkplaceId { get; set; }
-
-}
-
-public class AcceptInvitationDto
-{
-    public string UserId { get; set; } = string.Empty;
+    #endregion
 }

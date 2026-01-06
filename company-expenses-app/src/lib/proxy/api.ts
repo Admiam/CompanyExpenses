@@ -278,6 +278,10 @@ export const categoriesApi = {
     return apiProxy.get<ExpenseCategory[]>("/api/expensecategories");
   },
 
+  async getActiveCategories(): Promise<ExpenseCategory[]> {
+    return apiProxy.get<ExpenseCategory[]>("/api/expensecategories/active");
+  },
+
   async getCategoriesForWorkplace(workplaceId: string): Promise<ExpenseCategory[]> {
     return apiProxy.get<ExpenseCategory[]>(`/api/expensecategories/workplace/${workplaceId}`);
   },

@@ -10,6 +10,7 @@ import { categoriesApi, workplacesApi, workplaceMembersApi } from "@/lib/proxy/a
 import type { ExpenseCategory, Workplace } from "@/lib/proxy/types";
 import { useAuth } from "@/auth/useAuth";
 import { isAdmin } from "@/utils/roles";
+import { FILE_CONFIG } from "@/lib/app-config";
 
 interface ExpenseAttachment {
   id: string;
@@ -138,17 +139,16 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
 
     // Validate each file
     const validFiles: File[] = [];
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
 
     for (const file of files) {
-      // Validate file size (10 MB)
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`${file.name}: Soubor je příliš velký. Maximální velikost je 10 MB.`);
+      // Validate file size using configuration
+      if (file.size > FILE_CONFIG.maxFileSizeBytes) {
+        alert(`${file.name}: Soubor je příliš velký. Maximální velikost je ${FILE_CONFIG.maxFileSizeMB} MB.`);
         continue;
       }
 
-      // Validate file type
-      if (!allowedTypes.includes(file.type)) {
+      // Validate file type using configuration
+      if (!FILE_CONFIG.allowedImageTypes.includes(file.type)) {
         alert(`${file.name}: Nepodporovaný typ souboru. Povolené jsou pouze obrázky (JPEG, PNG, GIF).`);
         continue;
       }
@@ -420,7 +420,7 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
                     <span className="text-sm text-gray-600">{selectedFiles.length > 0 ? t("expenses.addAttachment") : t("expenses.dropFilesHere")}</span>
                     <span className="text-xs text-gray-500">{t("expenses.maxFileSize")}</span>
                   </label>
-                  <input id="receipt" type="file" multiple className="hidden" accept="image/jpeg,image/jpg,image/png,image/gif" onChange={handleFileSelect} />
+                  <input id="receipt" type="file" multiple className="hidden" accept={FILE_CONFIG.allowedImageAccept} onChange={handleFileSelect} />
                 </div>
               </div>
             </div>

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { AUTH_ENDPOINTS } from "@/lib/auth-config";
 
 export default function RegisterPage() {
   const [searchParams] = useSearchParams();
@@ -87,9 +88,9 @@ export default function RegisterPage() {
 
       toast.success("Registration successful! Redirecting to login...");
 
-      // Redirect to login or auth server
+      // Redirect to login using configured auth server URL
       setTimeout(() => {
-        window.location.href = "https://localhost:7169/Account/Login";
+        window.location.href = AUTH_ENDPOINTS.login;
       }, 2000);
     } catch (error: any) {
       console.error("Registration failed:", error);

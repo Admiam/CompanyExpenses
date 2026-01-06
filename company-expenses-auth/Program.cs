@@ -47,18 +47,22 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddDefaultTokenProviders();
 
 // Konfigurace cookie pro sdílení mezi Auth serverem a API
+var cookieDomain = builder.Configuration["CookieSettings:Domain"] ?? "localhost";
+var cookieExpireHours = builder.Configuration.GetValue<int>("CookieSettings:ExpireTimeSpanHours", 24);
+var slidingExpiration = builder.Configuration.GetValue<bool>("CookieSettings:SlidingExpiration", true);
+
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = ".AspNetCore.Identity.Application";
-    options.Cookie.Domain = "localhost"; // Stejná doména jako API
+    options.Cookie.Domain = cookieDomain; // Loaded from configuration
     options.Cookie.Path = "/";
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.None; // Povolí cross-origin
     options.Cookie.HttpOnly = true;
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
-    options.ExpireTimeSpan = TimeSpan.FromHours(24);
-    options.SlidingExpiration = true;
+    options.ExpireTimeSpan = TimeSpan.FromHours(cookieExpireHours);
+    options.SlidingExpiration = slidingExpiration;
 });
 
 // Use SmtpEmailSender for production, IdentityNoOpEmailSender for development without email

@@ -1,179 +1,144 @@
-using CompanyExpenses.Database.Data;
-using CompanyExpenses.Models.Entities;
+using CompanyExpenses.Services.Common;
+using CompanyExpenses.Services.DTOs;
+using CompanyExpenses.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace CompanyExpenses.Api.Controllers;
 
+/// <summary>
+/// Controller for workplace limit management - refactored to use Service layer
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class WorkplaceLimitsController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IWorkplaceLimitService _limitService;
     private readonly ILogger<WorkplaceLimitsController> _logger;
 
-    public WorkplaceLimitsController(AppDbContext context, ILogger<WorkplaceLimitsController> logger)
+    public WorkplaceLimitsController(
+        IWorkplaceLimitService limitService,
+        ILogger<WorkplaceLimitsController> logger)
     {
-        _context = context;
+        _limitService = limitService;
         _logger = logger;
     }
 
+    /// <summary>
+    /// Get all limits for a workplace
+    /// </summary>
     [HttpGet("workplace/{workplaceId}")]
-    public async Task<ActionResult<IEnumerable<WorkplaceLimit>>> GetWorkplaceLimits(Guid workplaceId)
+    public async Task<ActionResult> GetWorkplaceLimits(Guid workplaceId)
     {
-        var limits = await _context.WorkplaceLimits
-            .Include(wl => wl.Category)
-            .Where(wl => wl.WorkplaceId == workplaceId && wl.IsActive)
-            .OrderBy(wl => wl.PeriodFrom)
-            .ToListAsync();
-
-        return Ok(limits);
+        var result = await _limitService.GetLimitsByWorkplaceAsync(workplaceId);
+        return HandleResult(result);
     }
 
-    [HttpGet("{id}")]
-    public async Task<ActionResult<WorkplaceLimit>> GetLimit(Guid id)
+    /// <summary>
+    /// Get limit by ID
+    /// </summary>
+    [HttpGet("{workplaceId}/{id}")]
+    public async Task<ActionResult> GetLimit(Guid workplaceId, Guid id)
     {
-        var limit = await _context.WorkplaceLimits
-            .Include(wl => wl.Category)
-            .FirstOrDefaultAsync(wl => wl.Id == id);
-
-        if (limit == null)
-        {
-            return NotFound();
-        }
-
-        return Ok(limit);
+        var result = await _limitService.GetLimitByIdAsync(workplaceId, id);
+        return HandleResult(result);
     }
 
-    [HttpPost]
-    public async Task<ActionResult<WorkplaceLimit>> CreateLimit(WorkplaceLimit limit)
+    /// <summary>
+    /// Create a new limit
+    /// </summary>
+    [HttpPost("{workplaceId}")]
+    public async Task<ActionResult> CreateLimit(Guid workplaceId, [FromBody] CreateWorkplaceLimitDto dto)
     {
-        limit.Id = Guid.NewGuid();
-        limit.CreatedAt = DateTime.UtcNow;
-        limit.UpdatedAt = DateTime.UtcNow;
-        limit.IsActive = true;
+        var userId = GetCurrentUserId() ?? "system";
+        var result = await _limitService.CreateLimitAsync(workplaceId, dto, userId);
 
-        // Validate workplace exists
-        var workplaceExists = await _context.Workplaces.AnyAsync(w => w.Id == limit.WorkplaceId);
-        if (!workplaceExists)
+        if (result.IsSuccess && result.Data != null)
         {
-            return BadRequest("Workplace not found");
+            return CreatedAtAction(nameof(GetLimit),
+                new { workplaceId = workplaceId, id = result.Data.Id },
+                result.Data);
         }
 
-        // Validate category if provided
-        if (limit.CategoryId.HasValue)
-        {
-            var categoryExists = await _context.ExpenseCategories.AnyAsync(c => c.Id == limit.CategoryId.Value);
-            if (!categoryExists)
-            {
-                return BadRequest("Category not found");
-            }
-        }
-
-        // Check for overlapping periods
-        var hasOverlap = await _context.WorkplaceLimits
-            .Where(wl => wl.WorkplaceId == limit.WorkplaceId
-                && wl.CategoryId == limit.CategoryId
-                && wl.IsActive
-                && wl.Id != limit.Id)
-            .AnyAsync(wl =>
-                (limit.PeriodFrom >= wl.PeriodFrom && limit.PeriodFrom <= wl.PeriodTo) ||
-                (limit.PeriodTo >= wl.PeriodFrom && limit.PeriodTo <= wl.PeriodTo) ||
-                (limit.PeriodFrom <= wl.PeriodFrom && limit.PeriodTo >= wl.PeriodTo));
-
-        if (hasOverlap)
-        {
-            return BadRequest("A limit with overlapping period already exists for this workplace and category");
-        }
-
-        _context.WorkplaceLimits.Add(limit);
-        await _context.SaveChangesAsync();
-
-        // Reload with includes
-        var createdLimit = await _context.WorkplaceLimits
-            .Include(wl => wl.Category)
-            .FirstOrDefaultAsync(wl => wl.Id == limit.Id);
-
-        return CreatedAtAction(nameof(GetLimit), new { id = limit.Id }, createdLimit);
+        return HandleResult(result);
     }
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateLimit(Guid id, WorkplaceLimit limit)
+    /// <summary>
+    /// Update existing limit
+    /// </summary>
+    [HttpPut("{workplaceId}/{id}")]
+    public async Task<IActionResult> UpdateLimit(Guid workplaceId, Guid id, [FromBody] UpdateWorkplaceLimitDto dto)
     {
-        if (id != limit.Id)
+        var result = await _limitService.UpdateLimitAsync(workplaceId, id, dto);
+        if (result.IsSuccess)
         {
-            return BadRequest("ID mismatch");
+            return NoContent();
         }
-
-        var existingLimit = await _context.WorkplaceLimits.FindAsync(id);
-        if (existingLimit == null)
-        {
-            return NotFound();
-        }
-
-        // Validate category if provided
-        if (limit.CategoryId.HasValue)
-        {
-            var categoryExists = await _context.ExpenseCategories.AnyAsync(c => c.Id == limit.CategoryId.Value);
-            if (!categoryExists)
-            {
-                return BadRequest("Category not found");
-            }
-        }
-
-        // Check for overlapping periods (excluding current record)
-        var hasOverlap = await _context.WorkplaceLimits
-            .Where(wl => wl.WorkplaceId == limit.WorkplaceId
-                && wl.CategoryId == limit.CategoryId
-                && wl.IsActive
-                && wl.Id != limit.Id)
-            .AnyAsync(wl =>
-                (limit.PeriodFrom >= wl.PeriodFrom && limit.PeriodFrom <= wl.PeriodTo) ||
-                (limit.PeriodTo >= wl.PeriodFrom && limit.PeriodTo <= wl.PeriodTo) ||
-                (limit.PeriodFrom <= wl.PeriodFrom && limit.PeriodTo >= wl.PeriodTo));
-
-        if (hasOverlap)
-        {
-            return BadRequest("A limit with overlapping period already exists for this workplace and category");
-        }
-
-        existingLimit.CategoryId = limit.CategoryId;
-        existingLimit.PeriodFrom = limit.PeriodFrom;
-        existingLimit.PeriodTo = limit.PeriodTo;
-        existingLimit.LimitAmount = limit.LimitAmount;
-        existingLimit.Currency = limit.Currency;
-        existingLimit.UpdatedAt = DateTime.UtcNow;
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await _context.WorkplaceLimits.AnyAsync(e => e.Id == id))
-            {
-                return NotFound();
-            }
-            throw;
-        }
-
-        return NoContent();
+        return HandleResult(result);
     }
 
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteLimit(Guid id)
+    /// <summary>
+    /// Delete limit
+    /// </summary>
+    [HttpDelete("{workplaceId}/{id}")]
+    public async Task<IActionResult> DeleteLimit(Guid workplaceId, Guid id)
     {
-        var limit = await _context.WorkplaceLimits.FindAsync(id);
-        if (limit == null)
+        var result = await _limitService.DeleteLimitAsync(workplaceId, id);
+        if (result.IsSuccess)
         {
-            return NotFound();
+            return NoContent();
+        }
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get limit usage statistics
+    /// </summary>
+    [HttpGet("{workplaceId}/{id}/usage")]
+    public async Task<ActionResult> GetLimitUsage(Guid workplaceId, Guid id)
+    {
+        var result = await _limitService.GetLimitUsageAsync(workplaceId, id);
+        return HandleResult(result);
+    }
+
+    #region Helper Methods
+
+    private string? GetCurrentUserId()
+    {
+        return User.FindFirstValue(ClaimTypes.NameIdentifier);
+    }
+
+    private ActionResult HandleResult<T>(ServiceResult<T> result)
+    {
+        if (result.IsSuccess)
+        {
+            return Ok(result.Data);
         }
 
-        // Soft delete
-        limit.IsActive = false;
-        limit.UpdatedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        return result.ErrorType switch
+        {
+            ServiceErrorType.NotFound => NotFound(new { message = result.ErrorMessage }),
+            ServiceErrorType.BadRequest => BadRequest(new { message = result.ErrorMessage }),
+            ServiceErrorType.Unauthorized => Unauthorized(new { message = result.ErrorMessage }),
+            _ => StatusCode(500, new { message = result.ErrorMessage })
+        };
     }
+
+    private ActionResult HandleResult(ServiceResult result)
+    {
+        if (result.IsSuccess)
+        {
+            return Ok();
+        }
+
+        return result.ErrorType switch
+        {
+            ServiceErrorType.NotFound => NotFound(new { message = result.ErrorMessage }),
+            ServiceErrorType.BadRequest => BadRequest(new { message = result.ErrorMessage }),
+            ServiceErrorType.Unauthorized => Unauthorized(new { message = result.ErrorMessage }),
+            _ => StatusCode(500, new { message = result.ErrorMessage })
+        };
+    }
+
+    #endregion
 }

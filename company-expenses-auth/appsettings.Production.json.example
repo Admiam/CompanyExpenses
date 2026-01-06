@@ -1,0 +1,33 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": ""
+  },
+  "CookieSettings": {
+    "Domain": ".your-domain.com",
+    "ExpireTimeSpanHours": 24,
+    "SlidingExpiration": true
+  },
+  "AuthenticationSettings": {
+    "RevalidationIntervalMinutes": 30
+  },
+  "EmailSettings": {
+    "SmtpHost": "",
+    "SmtpPort": 587,
+    "SmtpUsername": "",
+    "SmtpPassword": "",
+    "FromEmail": "",
+    "FromName": "Company Expenses",
+    "EnableSsl": true
+  },
+  "AppSettings": {
+    "ApiBaseUrl": "https://api.your-domain.com",
+    "FrontendUrl": "https://app.your-domain.com"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}

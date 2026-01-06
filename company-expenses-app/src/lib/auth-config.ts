@@ -1,10 +1,10 @@
-// Auth configuration
+// Auth configuration - values loaded from environment variables
 export const AUTH_CONFIG = {
-  // Auth server URL (Blazor Identity)
-  authServerUrl: "https://localhost:7169",
+  // Auth server URL (Blazor Identity) - from environment variable
+  authServerUrl: import.meta.env.VITE_AUTH_SERVER_URL || "https://localhost:7169",
 
-  // API server URL
-  apiServerUrl: "https://localhost:7200",
+  // API server URL - from environment variable
+  apiServerUrl: import.meta.env.VITE_API_BASE_URL || "https://localhost:7200",
 
   // Cookie settings
   cookieName: ".AspNetCore.Identity.Application",

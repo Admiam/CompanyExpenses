@@ -1,233 +1,142 @@
-using CompanyExpenses.Database.Data;
-using CompanyExpenses.Models.Entities;
-using CompanyExpenses.Api.DTOs;
+using CompanyExpenses.Services.Common;
+using CompanyExpenses.Services.DTOs;
+using CompanyExpenses.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace CompanyExpenses.Api.Controllers;
 
+/// <summary>
+/// Controller for workplace management - refactored to use Service layer
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class WorkplacesController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IWorkplaceService _workplaceService;
     private readonly ILogger<WorkplacesController> _logger;
 
-    public WorkplacesController(AppDbContext context, ILogger<WorkplacesController> logger)
+    public WorkplacesController(
+        IWorkplaceService workplaceService,
+        ILogger<WorkplacesController> logger)
     {
-        _context = context;
+        _workplaceService = workplaceService;
         _logger = logger;
     }
 
     /// <summary>
-    /// Získá seznam všech pracovišť
+    /// Get all workplaces
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<WorkplaceDto>>> GetWorkplaces()
+    public async Task<ActionResult> GetWorkplaces()
     {
-        var workplaces = await _context.Workplaces
-            .Include(w => w.Members)
-            .ToListAsync();
-
-        var workplaceDtos = workplaces.Select(w => new WorkplaceDto
-        {
-            Id = w.Id,
-            Name = w.Name,
-            Code = w.Code,
-            IsActive = w.IsActive,
-            CreatedAt = w.CreatedAt,
-            CreatedBy = w.CreatedBy,
-            Members = w.Members.Select(m => new WorkplaceMemberDto
-            {
-                Id = m.Id,
-                WorkplaceId = m.WorkplaceId,
-                UserId = m.UserId,
-                PositionName = m.PositionName,
-                IsManager = m.IsManager,
-                CreatedAt = m.CreatedAt,
-                CreatedBy = m.CreatedBy
-            }).ToList()
-        }).ToList();
-
-        return Ok(workplaceDtos);
+        var result = await _workplaceService.GetAllWorkplacesAsync();
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Získá konkrétní pracoviště podle ID
+    /// Get workplace by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<WorkplaceDetailDto>> GetWorkplace(Guid id)
+    public async Task<ActionResult> GetWorkplace(Guid id)
     {
-        var workplace = await _context.Workplaces
-            .Include(w => w.Members)
-            .Include(w => w.Limits)
-            .FirstOrDefaultAsync(w => w.Id == id);
-
-        if (workplace == null)
-        {
-            return NotFound();
-        }
-
-        var workplaceDto = new WorkplaceDetailDto
-        {
-            Id = workplace.Id,
-            Name = workplace.Name,
-            Code = workplace.Code,
-            IsActive = workplace.IsActive,
-            CreatedAt = workplace.CreatedAt,
-            CreatedBy = workplace.CreatedBy,
-            Members = workplace.Members.Select(m => new WorkplaceMemberDto
-            {
-                Id = m.Id,
-                WorkplaceId = m.WorkplaceId,
-                UserId = m.UserId,
-                PositionName = m.PositionName,
-                IsManager = m.IsManager,
-                CreatedAt = m.CreatedAt,
-                CreatedBy = m.CreatedBy
-            }).ToList(),
-            Limits = workplace.Limits.Select(l => new WorkplaceLimitDto
-            {
-                Id = l.Id,
-                WorkplaceId = l.WorkplaceId,
-                PeriodFrom = l.PeriodFrom,
-                PeriodTo = l.PeriodTo,
-                LimitAmount = l.LimitAmount,
-                Currency = l.Currency,
-                CategoryId = l.CategoryId,
-                IsActive = l.IsActive,
-                CreatedAt = l.CreatedAt,
-                CreatedBy = l.CreatedBy
-            }).ToList()
-        };
-
-        return Ok(workplaceDto);
+        var result = await _workplaceService.GetWorkplaceByIdAsync(id);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Vytvoří nové pracoviště
+    /// Create a new workplace
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<Workplace>> CreateWorkplace(Workplace workplace)
+    public async Task<ActionResult> CreateWorkplace([FromBody] CreateWorkplaceDto dto)
     {
-        workplace.Id = Guid.NewGuid();
-        workplace.CreatedAt = DateTime.UtcNow;
-        workplace.CreatedBy = "test-user"; // TODO: Získat z authentication
+        var userId = GetCurrentUserId() ?? "system";
+        var result = await _workplaceService.CreateWorkplaceAsync(dto, userId);
 
-        _context.Workplaces.Add(workplace);
-        await _context.SaveChangesAsync();
+        if (result.IsSuccess && result.Data != null)
+        {
+            return CreatedAtAction(nameof(GetWorkplace), new { id = result.Data.Id }, result.Data);
+        }
 
-        return CreatedAtAction(nameof(GetWorkplace), new { id = workplace.Id }, workplace);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Aktualizuje existující pracoviště
+    /// Update existing workplace
     /// </summary>
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateWorkplace(Guid id, Workplace workplace)
+    public async Task<IActionResult> UpdateWorkplace(Guid id, [FromBody] UpdateWorkplaceDto dto)
     {
-        if (id != workplace.Id)
+        var result = await _workplaceService.UpdateWorkplaceAsync(id, dto);
+        if (result.IsSuccess)
         {
-            return BadRequest();
+            return NoContent();
         }
-
-        _context.Entry(workplace).State = EntityState.Modified;
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await WorkplaceExists(id))
-            {
-                return NotFound();
-            }
-            throw;
-        }
-
-        return NoContent();
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Získá informace o závislostech pracoviště
+    /// Get workplace dependencies
     /// </summary>
     [HttpGet("{id}/dependencies")]
-    public async Task<ActionResult<WorkplaceDependenciesDto>> GetWorkplaceDependencies(Guid id)
+    public async Task<ActionResult> GetWorkplaceDependencies(Guid id)
     {
-        var workplace = await _context.Workplaces.FindAsync(id);
-        if (workplace == null)
-        {
-            return NotFound();
-        }
-
-        var membersCount = await _context.WorkplaceMembers.CountAsync(m => m.WorkplaceId == id);
-        var limitsCount = await _context.WorkplaceLimits.CountAsync(l => l.WorkplaceId == id);
-        var invitationsCount = await _context.Invitations.CountAsync(i => i.WorkplaceId == id);
-        var expensesCount = await _context.Expenses.CountAsync(e => e.WorkplaceId == id);
-
-        return Ok(new WorkplaceDependenciesDto
-        {
-            WorkplaceId = id,
-            MembersCount = membersCount,
-            LimitsCount = limitsCount,
-            InvitationsCount = invitationsCount,
-            ExpensesCount = expensesCount,
-            CanDelete = membersCount == 0 && limitsCount == 0 && invitationsCount == 0 && expensesCount == 0
-        });
+        var result = await _workplaceService.GetDependenciesAsync(id);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Smaže pracoviště z databáze (pouze pokud nemá závislosti)
+    /// Delete workplace (only if no dependencies)
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteWorkplace(Guid id)
     {
-        var workplace = await _context.Workplaces.FindAsync(id);
-        if (workplace == null)
+        var result = await _workplaceService.DeleteWorkplaceAsync(id);
+        if (result.IsSuccess)
         {
-            return NotFound();
+            return NoContent();
         }
-
-        // Check dependencies
-        var membersCount = await _context.WorkplaceMembers.CountAsync(m => m.WorkplaceId == id);
-        var limitsCount = await _context.WorkplaceLimits.CountAsync(l => l.WorkplaceId == id);
-        var invitationsCount = await _context.Invitations.CountAsync(i => i.WorkplaceId == id);
-        var expensesCount = await _context.Expenses.CountAsync(e => e.WorkplaceId == id);
-
-        if (membersCount > 0 || limitsCount > 0 || invitationsCount > 0 || expensesCount > 0)
-        {
-            return BadRequest(new
-            {
-                message = "Cannot delete workplace with existing dependencies",
-                dependencies = new
-                {
-                    membersCount,
-                    limitsCount,
-                    invitationsCount,
-                    expensesCount
-                }
-            });
-        }
-
-        _context.Workplaces.Remove(workplace);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        return HandleResult(result);
     }
 
-    private async Task<bool> WorkplaceExists(Guid id)
+    #region Helper Methods
+
+    private string? GetCurrentUserId()
     {
-        return await _context.Workplaces.AnyAsync(e => e.Id == id);
+        return User.FindFirstValue(ClaimTypes.NameIdentifier);
     }
-}
 
-public class WorkplaceDependenciesDto
-{
-    public Guid WorkplaceId { get; set; }
-    public int MembersCount { get; set; }
-    public int LimitsCount { get; set; }
-    public int InvitationsCount { get; set; }
-    public int ExpensesCount { get; set; }
-    public bool CanDelete { get; set; }
+    private ActionResult HandleResult<T>(ServiceResult<T> result)
+    {
+        if (result.IsSuccess)
+        {
+            return Ok(result.Data);
+        }
+
+        return result.ErrorType switch
+        {
+            ServiceErrorType.NotFound => NotFound(new { message = result.ErrorMessage }),
+            ServiceErrorType.BadRequest => BadRequest(new { message = result.ErrorMessage }),
+            ServiceErrorType.Unauthorized => Unauthorized(new { message = result.ErrorMessage }),
+            _ => StatusCode(500, new { message = result.ErrorMessage })
+        };
+    }
+
+    private ActionResult HandleResult(ServiceResult result)
+    {
+        if (result.IsSuccess)
+        {
+            return Ok();
+        }
+
+        return result.ErrorType switch
+        {
+            ServiceErrorType.NotFound => NotFound(new { message = result.ErrorMessage }),
+            ServiceErrorType.BadRequest => BadRequest(new { message = result.ErrorMessage }),
+            ServiceErrorType.Unauthorized => Unauthorized(new { message = result.ErrorMessage }),
+            _ => StatusCode(500, new { message = result.ErrorMessage })
+        };
+    }
+
+    #endregion
 }

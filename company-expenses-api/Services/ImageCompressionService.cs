@@ -11,9 +11,16 @@ public interface IImageCompressionService
 
 public class ImageCompressionService : IImageCompressionService
 {
-    private const int MaxWidth = 800;
-    private const int MaxHeight = 800;
-    private const int JpegQuality = 75;
+    private readonly int _maxWidth;
+    private readonly int _maxHeight;
+    private readonly int _jpegQuality;
+
+    public ImageCompressionService(IConfiguration configuration)
+    {
+        _maxWidth = configuration.GetValue<int>("ImageCompression:MaxWidth", 800);
+        _maxHeight = configuration.GetValue<int>("ImageCompression:MaxHeight", 800);
+        _jpegQuality = configuration.GetValue<int>("ImageCompression:JpegQuality", 75);
+    }
 
     public async Task<(string base64Data, long compressedSize)> CompressImageToBase64Async(string base64Input, string contentType)
     {
@@ -24,10 +31,10 @@ public class ImageCompressionService : IImageCompressionService
         using var image = await Image.LoadAsync(inputStream);
 
         // Resize if image is too large
-        if (image.Width > MaxWidth || image.Height > MaxHeight)
+        if (image.Width > _maxWidth || image.Height > _maxHeight)
         {
-            var ratioX = (double)MaxWidth / image.Width;
-            var ratioY = (double)MaxHeight / image.Height;
+            var ratioX = (double)_maxWidth / image.Width;
+            var ratioY = (double)_maxHeight / image.Height;
             var ratio = Math.Min(ratioX, ratioY);
 
             var newWidth = (int)(image.Width * ratio);
@@ -38,7 +45,7 @@ public class ImageCompressionService : IImageCompressionService
 
         // Compress and convert to JPEG
         using var outputStream = new MemoryStream();
-        var encoder = new JpegEncoder { Quality = JpegQuality };
+        var encoder = new JpegEncoder { Quality = _jpegQuality };
         await image.SaveAsync(outputStream, encoder);
 
         // Convert to base64

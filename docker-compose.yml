@@ -1,0 +1,126 @@
+services:
+  # SQL Server Database
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: company-expenses-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=CompanyExpenses123!
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "CompanyExpenses123!" -C -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - company-expenses-network
+
+  # Database initialization - creates databases
+  db-init:
+    image: mcr.microsoft.com/mssql-tools:latest
+    container_name: company-expenses-db-init
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./docker/init-db.sql:/init-db.sql:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Waiting for SQL Server to be ready..."
+        sleep 5
+        echo "Creating databases..."
+        /opt/mssql-tools18/bin/sqlcmd -S db -U sa -P "CompanyExpenses123!" -C -i /init-db.sql
+        echo "Database initialization complete!"
+    networks:
+      - company-expenses-network
+
+  # Auth Server (Blazor Identity)
+  auth:
+    build:
+      context: .
+      dockerfile: company-expenses-auth/Dockerfile
+    container_name: company-expenses-auth
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=db,1433;Database=company_expenses_auth;User Id=sa;Password=CompanyExpenses123!;TrustServerCertificate=True;MultipleActiveResultSets=true;
+      - CookieSettings__Domain=localhost
+      - AppSettings__ApiBaseUrl=http://api
+      - AppSettings__FrontendUrl=http://localhost:3000
+      - Authentication__Google__ClientId=${GOOGLE_CLIENT_ID:-}
+      - Authentication__Google__ClientSecret=${GOOGLE_CLIENT_SECRET:-}
+    ports:
+      - "5169:80"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    volumes:
+      - shared_keys:/app/shared-keys
+    networks:
+      - company-expenses-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # API Server
+  api:
+    build:
+      context: .
+      dockerfile: company-expenses-api/Dockerfile
+    container_name: company-expenses-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=db,1433;Database=company_expenses;User Id=sa;Password=CompanyExpenses123!;TrustServerCertificate=True;MultipleActiveResultSets=true;
+      - ConnectionStrings__AuthConnection=Server=db,1433;Database=company_expenses_auth;User Id=sa;Password=CompanyExpenses123!;TrustServerCertificate=True;MultipleActiveResultSets=true;
+      - CookieSettings__Domain=localhost
+      - CorsSettings__AllowedOrigins=http://localhost:3000,http://localhost:5173
+    ports:
+      - "5200:80"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    volumes:
+      - shared_keys:/app/shared-keys
+      - uploads_data:/app/uploads
+    networks:
+      - company-expenses-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Frontend App (React/Vite)
+  app:
+    build:
+      context: ./company-expenses-app
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:5200
+        - VITE_AUTH_SERVER_URL=http://localhost:5169
+    container_name: company-expenses-app
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+      - auth
+    networks:
+      - company-expenses-network
+
+volumes:
+  sqlserver_data:
+  shared_keys:
+  uploads_data:
+
+networks:
+  company-expenses-network:
+    driver: bridge

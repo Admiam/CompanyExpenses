@@ -7,13 +7,24 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection;
 using DotNetEnv;
 
-// Load .env file
+// Load .env file (for local development)
 Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Data Protection - sdílené klíče s API serverem
-var keysPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "shared-keys");
+// Configure Data Protection - shared keys for authentication between API and Auth server
+// In Docker: /app/shared-keys (volume mount)
+// In development: ../shared-keys (relative path)
+var keysPath = Environment.GetEnvironmentVariable("DATA_PROTECTION_KEYS_PATH")
+    ?? builder.Configuration["DataProtection:KeysPath"]
+    ?? Path.Combine(Directory.GetCurrentDirectory(), "..", "shared-keys");
+
+// Check if we're in Docker (path starts with /app)
+if (Directory.Exists("/app/shared-keys"))
+{
+    keysPath = "/app/shared-keys";
+}
+
 Directory.CreateDirectory(keysPath);
 
 builder.Services.AddDataProtection()
@@ -80,6 +91,9 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, SmtpEmailSender>();
 // Add HttpClient for API calls
 builder.Services.AddHttpClient();
 
+// Add health checks
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -98,6 +112,9 @@ app.UseHttpsRedirection();
 
 app.UseAntiforgery();
 
+// Map health check endpoint
+app.MapHealthChecks("/health");
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
@@ -105,11 +122,12 @@ app.MapRazorComponents<App>()
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
 
-// Apply migrations and seed roles
+// Apply migrations and seed roles/admin user
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<ApplicationDbContext>();
+    var logger = services.GetRequiredService<ILogger<Program>>();
 
     // Apply pending migrations
     await context.Database.MigrateAsync();
@@ -117,6 +135,10 @@ using (var scope = app.Services.CreateScope())
     // Seed roles
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
     await DbInitializer.SeedRoles(roleManager);
+
+    // Seed admin user (for Docker/first-time setup)
+    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    await DbInitializer.SeedAdminUser(userManager, logger);
 }
 
 app.Run();

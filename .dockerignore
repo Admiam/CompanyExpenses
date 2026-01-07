@@ -1,0 +1,56 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Build outputs
+**/bin
+**/obj
+**/node_modules
+**/dist
+
+# Test projects
+**/*.tests
+**/company-expenses-*.tests
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+appsettings.*.json
+!appsettings.json
+!appsettings.Production.json.example
+
+# Logs
+*.log
+logs/
+
+# Database files
+*.mdf
+*.ldf
+DB/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Documentation
+*.md
+!README.md
+
+# Shared keys (will be created in Docker volume)
+shared-keys/
+
+# User secrets
+secrets.json

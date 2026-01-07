@@ -10,13 +10,24 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using DotNetEnv;
 
-// Load .env file
+// Load .env file (for local development)
 Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Data Protection - MUSÍ být stejné jako v Auth serveru!
-var keysPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "shared-keys");
+// Configure Data Protection - shared keys for authentication between API and Auth server
+// In Docker: /app/shared-keys (volume mount)
+// In development: ../shared-keys (relative path)
+var keysPath = Environment.GetEnvironmentVariable("DATA_PROTECTION_KEYS_PATH")
+    ?? builder.Configuration["DataProtection:KeysPath"]
+    ?? Path.Combine(Directory.GetCurrentDirectory(), "..", "shared-keys");
+
+// Check if we're in Docker (path starts with /app)
+if (Directory.Exists("/app/shared-keys"))
+{
+    keysPath = "/app/shared-keys";
+}
+
 Directory.CreateDirectory(keysPath);
 
 builder.Services.AddDataProtection()
@@ -146,6 +157,26 @@ builder.Services.AddScoped<IWorkplaceMemberService, WorkplaceMemberService>();
 builder.Services.AddScoped<IWorkplaceLimitService, WorkplaceLimitService>();
 
 var app = builder.Build();
+
+// Apply database migrations on startup
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        var context = services.GetRequiredService<AppDbContext>();
+        logger.LogInformation("Applying database migrations...");
+        await context.Database.MigrateAsync();
+        logger.LogInformation("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while migrating the database.");
+        throw;
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

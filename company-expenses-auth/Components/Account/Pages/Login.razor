@@ -69,31 +69,31 @@
                                 Log in
                             </button>
                         </div>
-
-                        <!-- Divider -->
-                        <div class="relative my-6">
-                            <div class="absolute inset-0 flex items-center">
-                                <div class="w-full border-t border-gray-300"></div>
-                            </div>
-                            <div class="relative flex justify-center text-sm">
-                                <span class="px-2 bg-white text-gray-500">Or continue with</span>
-                            </div>
-                        </div>
-
-                        <!-- External Login -->
-                        <div class="mb-6">
-                            <ExternalLoginPicker />
-                        </div>
-
-                        <!-- Register Link -->
-                        <div class="text-center">
-                            <p class="text-sm text-gray-600">
-                                Don't have an account?
-                                <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))"
-                                    class="text-blue-600 hover:text-blue-800 font-medium transition">Sign up</a>
-                            </p>
-                        </div>
                     </EditForm>
+
+                    <!-- Divider -->
+                    <div class="relative my-6">
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div class="relative flex justify-center text-sm">
+                            <span class="px-2 bg-white text-gray-500">Or continue with</span>
+                        </div>
+                    </div>
+
+                    <!-- External Login -->
+                    <div class="mb-6">
+                        <ExternalLoginPicker />
+                    </div>
+
+                    <!-- Register Link -->
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600">
+                            Don't have an account?
+                            <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))"
+                                class="text-blue-600 hover:text-blue-800 font-medium transition">Sign up</a>
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Image Section -->

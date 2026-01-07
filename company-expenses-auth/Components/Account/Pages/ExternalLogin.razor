@@ -4,43 +4,72 @@
 @using System.Security.Claims
 @using System.Text
 @using System.Text.Encodings.Web
+@using System.Text.Json
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
 @using company_expenses_auth.Data
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
 @inject IUserStore<ApplicationUser> UserStore
 @inject IEmailSender<ApplicationUser> EmailSender
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<ExternalLogin> Logger
+@inject IConfiguration Configuration
+@inject HttpClient HttpClient
 
-<PageTitle>Register</PageTitle>
+<PageTitle>External Login</PageTitle>
 
-<StatusMessage Message="@message" />
-<h1>Register</h1>
-<h2>Associate your @ProviderDisplayName account.</h2>
-<hr />
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+    <div class="w-full max-w-md">
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <StatusMessage Message="@message" />
 
-<div  class="alert alert-info">
-    You've successfully authenticated with <strong>@ProviderDisplayName</strong>.
-    Please enter an email address for this site below and click the Register button to finish
-    logging in.
-</div>
+            @if (showEmailMismatchError)
+            {
+                <div class="text-center">
+                    <div class="text-red-600 text-5xl mb-4">⚠️</div>
+                    <h1 class="text-2xl font-bold text-gray-900 mb-2">Email Mismatch</h1>
+                    <p class="text-gray-600 mb-6">
+                        Your Google account email (<strong>@googleEmail</strong>) does not match the invited email
+                        (<strong>@ExpectedEmail</strong>).
+                        Please use the correct Google account or register with password.
+                    </p>
+                    <a href="@GetRegisterUrl()"
+                        class="inline-block bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700 transition">
+                        Back to Registration
+                    </a>
+                </div>
+            }
+            else if (showAssociateForm)
+            {
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Complete Registration</h1>
+                <p class="text-gray-600 mb-6">
+                    You've successfully authenticated with <strong>@ProviderDisplayName</strong>.
+                    Please confirm your email address to complete registration.
+                </p>
 
-<div class="row">
-    <div class="col-md-4">
-        <EditForm Model="Input" OnValidSubmit="OnValidSubmitAsync" FormName="confirmation" method="post">
-            <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="email" placeholder="Please enter your email." />
-                <label for="Input.Email" class="form-label">Email</label>
-                <ValidationMessage For="() => Input.Email" />
-            </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
-        </EditForm>
+                <EditForm Model="Input" OnValidSubmit="OnValidSubmitAsync" FormName="confirmation" method="post">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-red-600 text-sm mb-4" role="alert" />
+
+                    <div class="mb-4">
+                        <label for="Input.Email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <InputText @bind-Value="Input.Email" id="Input.Email"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-gray-100"
+                            autocomplete="email" readonly="@(!string.IsNullOrEmpty(ExpectedEmail))" />
+                        <ValidationMessage For="() => Input.Email" class="text-red-600 text-sm mt-1" />
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition font-medium shadow-sm">
+                        Complete Registration
+                    </button>
+                </EditForm>
+            }
+        </div>
     </div>
 </div>
 
@@ -49,6 +78,9 @@
 
     private string? message;
     private ExternalLoginInfo? externalLoginInfo;
+    private bool showEmailMismatchError = false;
+    private bool showAssociateForm = false;
+    private string? googleEmail;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
@@ -64,6 +96,12 @@
 
     [SupplyParameterFromQuery]
     private string? Action { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? InvitationToken { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? ExpectedEmail { get; set; }
 
     private string? ProviderDisplayName => externalLoginInfo?.ProviderDisplayName;
 
@@ -100,6 +138,20 @@
         }
     }
 
+    private string GetRegisterUrl()
+    {
+        var parameters = new Dictionary<string, object?>();
+        if (!string.IsNullOrEmpty(InvitationToken))
+        {
+            parameters["Token"] = InvitationToken;
+        }
+        if (!string.IsNullOrEmpty(ReturnUrl))
+        {
+            parameters["ReturnUrl"] = ReturnUrl;
+        }
+        return NavigationManager.GetUriWithQueryParameters("Account/Register", parameters);
+    }
+
     private async Task OnLoginCallbackAsync()
     {
         if (externalLoginInfo is null)
@@ -108,20 +160,42 @@
             return;
         }
 
+        // Get email from OAuth provider
+        googleEmail = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Email);
+
+        // Validate email if ExpectedEmail is set (from registration with invitation)
+        if (!string.IsNullOrEmpty(ExpectedEmail) && !string.IsNullOrEmpty(googleEmail))
+        {
+            if (!string.Equals(googleEmail, ExpectedEmail, StringComparison.OrdinalIgnoreCase))
+            {
+                showEmailMismatchError = true;
+                return;
+            }
+        }
+
         // Sign in the user with this external login provider if the user already has a login.
         var result = await SignInManager.ExternalLoginSignInAsync(
-            externalLoginInfo.LoginProvider,
-            externalLoginInfo.ProviderKey,
-            isPersistent: false,
-            bypassTwoFactor: true);
+        externalLoginInfo.LoginProvider,
+        externalLoginInfo.ProviderKey,
+        isPersistent: false,
+        bypassTwoFactor: true);
 
         if (result.Succeeded)
         {
             Logger.LogInformation(
-                "{Name} logged in with {LoginProvider} provider.",
-                externalLoginInfo.Principal.Identity?.Name,
-                externalLoginInfo.LoginProvider);
-            RedirectManager.RedirectTo(ReturnUrl);
+            "{Name} logged in with {LoginProvider} provider.",
+            externalLoginInfo.Principal.Identity?.Name,
+            externalLoginInfo.LoginProvider);
+
+            // Redirect properly
+            if (!string.IsNullOrEmpty(ReturnUrl) && (ReturnUrl.StartsWith("http://") || ReturnUrl.StartsWith("https://")))
+            {
+                NavigationManager.NavigateTo(ReturnUrl, forceLoad: true);
+            }
+            else
+            {
+                RedirectManager.RedirectTo(ReturnUrl);
+            }
             return;
         }
         else if (result.IsLockedOut)
@@ -130,10 +204,146 @@
             return;
         }
 
-        // If the user does not have an account, then ask the user to create an account.
+        // If the user does not have an account, check if this is from an invitation (registration flow)
+        if (!string.IsNullOrEmpty(InvitationToken) && !string.IsNullOrEmpty(ExpectedEmail))
+        {
+            // Auto-register the user since they came from a valid invitation
+            await AutoRegisterFromInvitation();
+            return;
+        }
+
+        // Show the associate form for login flow (user doesn't exist yet)
+        showAssociateForm = true;
         if (externalLoginInfo.Principal.HasClaim(c => c.Type == ClaimTypes.Email))
         {
-            Input.Email = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Email) ?? "";
+            Input.Email = googleEmail ?? "";
+        }
+    }
+
+    private async Task AutoRegisterFromInvitation()
+    {
+        if (externalLoginInfo is null || string.IsNullOrEmpty(ExpectedEmail))
+        {
+            message = "Error: Invalid registration state.";
+            return;
+        }
+
+        // Verify invitation is still valid
+        InvitationDto? invitation = null;
+        try
+        {
+            var apiBaseUrl = Configuration["AppSettings:ApiBaseUrl"] ?? "https://localhost:7200";
+            var response = await HttpClient.GetAsync($"{apiBaseUrl}/api/invitations/verify/{InvitationToken}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                invitation = JsonSerializer.Deserialize<InvitationDto>(content, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            else
+            {
+                message = "Error: Invitation is no longer valid.";
+                showAssociateForm = true;
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to verify invitation token during OAuth registration");
+            message = "Error: Failed to verify invitation.";
+            showAssociateForm = true;
+            return;
+        }
+
+        // Create the user
+        var emailStore = GetEmailStore();
+        var user = CreateUser();
+
+        await UserStore.SetUserNameAsync(user, ExpectedEmail, CancellationToken.None);
+        await emailStore.SetEmailAsync(user, ExpectedEmail, CancellationToken.None);
+
+        var createResult = await UserManager.CreateAsync(user);
+        if (!createResult.Succeeded)
+        {
+            message = $"Error: {string.Join(", ", createResult.Errors.Select(error => error.Description))}";
+            showAssociateForm = true;
+            return;
+        }
+
+        // Add external login
+        var addLoginResult = await UserManager.AddLoginAsync(user, externalLoginInfo);
+        if (!addLoginResult.Succeeded)
+        {
+            message = $"Error: {string.Join(", ", addLoginResult.Errors.Select(error => error.Description))}";
+            return;
+        }
+
+        Logger.LogInformation("User created an account using {Name} provider via invitation.", externalLoginInfo.LoginProvider);
+
+        var userId = await UserManager.GetUserIdAsync(user);
+
+        // Assign role if provided in invitation
+        if (invitation != null && !string.IsNullOrEmpty(invitation.InvitedRoleId))
+        {
+            try
+            {
+                var role = await RoleManager.FindByIdAsync(invitation.InvitedRoleId);
+                if (role != null && !string.IsNullOrEmpty(role.Name))
+                {
+                    var roleResult = await UserManager.AddToRoleAsync(user, role.Name);
+                    if (roleResult.Succeeded)
+                    {
+                        Logger.LogInformation("User {UserId} assigned to role {RoleName} via OAuth registration",
+                        userId, role.Name);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error assigning role to user {UserId} during OAuth registration", userId);
+            }
+        }
+
+        // Accept the invitation
+        if (invitation != null)
+        {
+            try
+            {
+                var apiBaseUrl = Configuration["AppSettings:ApiBaseUrl"] ?? "https://localhost:7200";
+                var acceptPayload = JsonSerializer.Serialize(new { userId });
+                var content = new StringContent(acceptPayload, Encoding.UTF8, "application/json");
+                var response = await HttpClient.PostAsync($"{apiBaseUrl}/api/invitations/{invitation.Id}/accept", content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Logger.LogInformation("Invitation accepted for user {UserId} via OAuth", userId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error accepting invitation for user {UserId} during OAuth registration", userId);
+            }
+        }
+
+        // Auto-confirm email (since they authenticated via OAuth)
+        var emailConfirmationToken = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        await UserManager.ConfirmEmailAsync(user, emailConfirmationToken);
+        Logger.LogInformation("Email automatically confirmed for user {UserId} via OAuth", userId);
+
+        // Sign in the user
+        await SignInManager.SignInAsync(user, isPersistent: false, externalLoginInfo.LoginProvider);
+
+        // Redirect
+        if (!string.IsNullOrEmpty(ReturnUrl) && (ReturnUrl.StartsWith("http://") || ReturnUrl.StartsWith("https://")))
+        {
+            NavigationManager.NavigateTo(ReturnUrl, forceLoad: true);
+        }
+        else
+        {
+            RedirectManager.RedirectTo("/");
         }
     }
 
@@ -141,7 +351,8 @@
     {
         if (externalLoginInfo is null)
         {
-            RedirectManager.RedirectToWithStatus("Account/Login", "Error loading external login information during confirmation.", HttpContext);
+            RedirectManager.RedirectToWithStatus("Account/Login", "Error loading external login information during confirmation.",
+            HttpContext);
             return;
         }
 
@@ -160,24 +371,13 @@
                 Logger.LogInformation("User created an account using {Name} provider.", externalLoginInfo.LoginProvider);
 
                 var userId = await UserManager.GetUserIdAsync(user);
-                var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
-                code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-                var callbackUrl = NavigationManager.GetUriWithQueryParameters(
-                    NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
-                    new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code });
-                await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
+                // Auto-confirm email (since they authenticated via OAuth)
+                var emailConfirmationToken = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+                await UserManager.ConfirmEmailAsync(user, emailConfirmationToken);
 
-                // If account confirmation is required, we need to show the link if we don't have a real email sender
-                if (UserManager.Options.SignIn.RequireConfirmedAccount)
-                {
-                    RedirectManager.RedirectTo("Account/RegisterConfirmation", new() { ["email"] = Input.Email });
-                }
-                else
-                {
-                    await SignInManager.SignInAsync(user, isPersistent: false, externalLoginInfo.LoginProvider);
-                    RedirectManager.RedirectTo(ReturnUrl);
-                }
+                await SignInManager.SignInAsync(user, isPersistent: false, externalLoginInfo.LoginProvider);
+                RedirectManager.RedirectTo(ReturnUrl);
             }
         }
         else
@@ -195,7 +395,7 @@
         catch
         {
             throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. " +
-                $"Ensure that '{nameof(ApplicationUser)}' is not an abstract class and has a parameterless constructor");
+            $"Ensure that '{nameof(ApplicationUser)}' is not an abstract class and has a parameterless constructor");
         }
     }
 
@@ -213,5 +413,12 @@
         [Required]
         [EmailAddress]
         public string Email { get; set; } = "";
+    }
+
+    private class InvitationDto
+    {
+        public string Id { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string? InvitedRoleId { get; set; }
     }
 }

@@ -115,8 +115,11 @@ else
                                     Register
                                 </button>
                             </div>
+                        </EditForm>
 
-                            <!-- Divider -->
+                        <!-- Divider - only show for Gmail addresses -->
+                        @if (IsGmailAddress())
+                        {
                             <div class="relative my-6">
                                 <div class="absolute inset-0 flex items-center">
                                     <div class="w-full border-t border-gray-300"></div>
@@ -126,20 +129,21 @@ else
                                 </div>
                             </div>
 
-                            <!-- External Login -->
+                            <!-- External Login - only show Google for Gmail addresses -->
                             <div class="mb-6">
-                                <ExternalLoginPicker />
+                                <ExternalLoginPicker FilterByEmail="@Input.Email" ExpectedEmail="@Input.Email"
+                                    InvitationToken="@Token" ShowDisabledButton="false" />
                             </div>
+                        }
 
-                            <!-- Login Link -->
-                            <div class="text-center">
-                                <p class="text-sm text-gray-600">
-                                    Already have an account?
-                                    <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Login", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))"
-                                        class="text-blue-600 hover:text-blue-800 font-medium transition">Sign in</a>
-                                </p>
-                            </div>
-                        </EditForm>
+                        <!-- Login Link -->
+                        <div class="text-center mt-6">
+                            <p class="text-sm text-gray-600">
+                                Already have an account?
+                                <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Login", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))"
+                                    class="text-blue-600 hover:text-blue-800 font-medium transition">Sign in</a>
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Image Section -->
@@ -187,12 +191,22 @@ else
     [SupplyParameterFromQuery]
     private string? Token { get; set; }
 
-    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
+    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error =>
+    error.Description))}";
 
     private string GetEmailInputClass()
     {
         var baseClass = "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition";
         return hasInvitationToken ? $"{baseClass} bg-gray-100" : baseClass;
+    }
+
+    private bool IsGmailAddress()
+    {
+        if (string.IsNullOrEmpty(Input?.Email))
+            return false;
+
+        var emailLower = Input.Email.ToLowerInvariant();
+        return emailLower.EndsWith("@gmail.com") || emailLower.EndsWith("@googlemail.com");
     }
 
     protected override async Task OnInitializedAsync()
@@ -270,7 +284,7 @@ else
         Logger.LogInformation("User created a new account with password.");
 
         var userId = await UserManager.GetUserIdAsync(user);
-        
+
         // Assign role if provided in invitation
         if (!string.IsNullOrEmpty(invitedRoleId))
         {
@@ -283,13 +297,13 @@ else
                     var roleResult = await UserManager.AddToRoleAsync(user, role.Name);
                     if (roleResult.Succeeded)
                     {
-                        Logger.LogInformation("User {UserId} assigned to role {RoleName} (ID: {RoleId})", 
-                            userId, role.Name, invitedRoleId);
+                        Logger.LogInformation("User {UserId} assigned to role {RoleName} (ID: {RoleId})",
+                        userId, role.Name, invitedRoleId);
                     }
                     else
                     {
                         Logger.LogWarning("Failed to assign role {RoleName} to user {UserId}: {Errors}",
-                            role.Name, userId, string.Join(", ", roleResult.Errors.Select(e => e.Description)));
+                        role.Name, userId, string.Join(", ", roleResult.Errors.Select(e => e.Description)));
                     }
                 }
                 else

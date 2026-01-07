@@ -26,11 +26,25 @@ namespace Microsoft.AspNetCore.Routing
                 HttpContext context,
                 [FromServices] SignInManager<ApplicationUser> signInManager,
                 [FromForm] string provider,
-                [FromForm] string returnUrl) =>
+                [FromForm] string returnUrl,
+                [FromForm] string? invitationToken,
+                [FromForm] string? expectedEmail) =>
             {
-                IEnumerable<KeyValuePair<string, StringValues>> query = [
+                var query = new List<KeyValuePair<string, StringValues>>
+                {
                     new("ReturnUrl", returnUrl),
-                    new("Action", ExternalLogin.LoginCallbackAction)];
+                    new("Action", ExternalLogin.LoginCallbackAction)
+                };
+
+                // Pass invitation token and expected email through OAuth flow
+                if (!string.IsNullOrEmpty(invitationToken))
+                {
+                    query.Add(new("InvitationToken", invitationToken));
+                }
+                if (!string.IsNullOrEmpty(expectedEmail))
+                {
+                    query.Add(new("ExpectedEmail", expectedEmail));
+                }
 
                 var redirectUrl = UriHelper.BuildRelative(
                     context.Request.PathBase,

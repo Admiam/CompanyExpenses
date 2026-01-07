@@ -29,6 +29,8 @@ logs/
 # Environment
 .env
 .env.local
+appsettings.Development.json
+**/appsettings.Development.json
 
 # Database
 *.db

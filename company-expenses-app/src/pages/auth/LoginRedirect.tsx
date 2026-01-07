@@ -1,17 +1,9 @@
 import { useEffect } from "react";
 import { AUTH_CONFIG } from "@/lib/auth-config";
 
-/**
- * LoginRedirect component
- * Redirects user to the auth server login page
- * After successful login, user is redirected back to the returnUrl
- */
 export default function LoginRedirect() {
   useEffect(() => {
-    // Get the current URL as return destination
     const returnUrl = encodeURIComponent(window.location.origin + "/dashboard");
-
-    // Redirect to auth server login with return URL
     window.location.href = `${AUTH_CONFIG.authServerUrl}/Account/Login?returnUrl=${returnUrl}`;
   }, []);
 

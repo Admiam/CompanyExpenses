@@ -73,7 +73,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (item.url === "/categories") {
       return canAccessCategories(userRole);
     }
-    // Dashboard and Expenses are accessible to all authenticated users
     return true;
   });
 

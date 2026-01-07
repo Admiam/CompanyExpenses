@@ -23,11 +23,9 @@ export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
     },
   } satisfies ChartConfig;
 
-  // Safe data with fallbacks
   const safeWorkplaceData = workplaceData ?? [];
   const safeCategoryData = categoryData ?? [];
 
-  // Get all unique categories for the stacked bar chart
   const allCategories = new Map<string, { name: string; color: string }>();
   safeWorkplaceData.forEach((workplace) => {
     (workplace.categories ?? []).forEach((cat) => {
@@ -40,19 +38,16 @@ export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
     });
   });
 
-  // Transform data for stacked bar chart
   const barData = safeWorkplaceData.slice(0, 10).map((workplace) => {
     const dataPoint: any = {
       name: workplace.workplaceName,
     };
-    // Add each category as a separate property
     (workplace.categories ?? []).forEach((cat) => {
       dataPoint[cat.categoryName] = cat.total;
     });
     return dataPoint;
   });
 
-  // Create dynamic bar config for categories
   const dynamicBarConfig: ChartConfig = {};
   allCategories.forEach((category) => {
     dynamicBarConfig[category.name] = {
@@ -61,7 +56,6 @@ export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
     };
   });
 
-  // Transform data for pie chart with colors from database
   const pieData = safeCategoryData.map((item, index) => ({
     name: item.categoryName,
     value: item.total,
@@ -70,7 +64,6 @@ export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Bar chart - takes 2/3 width */}
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle>{t("charts.expensesByWorkplace")}</CardTitle>
@@ -95,7 +88,6 @@ export function ChartBarPie({ categoryData, workplaceData }: ChartBarPieProps) {
         </CardContent>
       </Card>
 
-      {/* Pie chart - takes 1/3 width */}
       <Card className="flex flex-col">
         <CardHeader>
           <CardTitle>{t("charts.expensesByCategory")}</CardTitle>

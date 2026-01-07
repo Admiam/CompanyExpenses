@@ -166,20 +166,6 @@ export function UserInviteModal({ open, onOpenChange, onSuccess }: UserInviteMod
           </form>
         </DialogContent>
       </Dialog>
-      {/* <DialogFooter>
-        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-          Zrušit
-        </Button>
-        <Button type="submit">Odeslat pozvánku</Button>
-      </DialogFooter> */}
     </div>
   );
 }
-//   </div>
-// </div>
-
-//         </form>
-//       </DialogContent>
-//     </Dialog>
-//   );
-// }

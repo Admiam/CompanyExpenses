@@ -1,9 +1,5 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosError } from "axios";
 
-/**
- * API Proxy class for making HTTP requests to the backend
- * Handles authentication, error handling, and request/response interceptors
- */
 export class ApiProxy {
   private axiosInstance: AxiosInstance;
 
@@ -15,10 +11,9 @@ export class ApiProxy {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      withCredentials: true, // Critical: sends cookies with every request
+      withCredentials: true,
     });
 
-    // Request interceptor - add auth tokens, modify headers
     this.axiosInstance.interceptors.request.use(
       (config) => {
         console.log(`🌐 ${config.method?.toUpperCase()} ${config.url}`);
@@ -32,7 +27,6 @@ export class ApiProxy {
       }
     );
 
-    // Response interceptor - handle errors, refresh tokens
     this.axiosInstance.interceptors.response.use(
       (response) => {
         console.log(`✅ ${response.config.method?.toUpperCase()} ${response.config.url} → ${response.status}`);
@@ -68,7 +62,6 @@ export class ApiProxy {
     );
   }
 
-  
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.axiosInstance.get<T>(url, config);
     return response.data;
@@ -95,8 +88,6 @@ export class ApiProxy {
   }
 }
 
-// Export singleton instance with default configuration
 export const apiProxy = new ApiProxy();
 
-// Export class for creating custom instances if needed
 export default apiProxy;

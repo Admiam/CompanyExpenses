@@ -4,6 +4,9 @@ using CompanyExpenses.Api.Data;
 
 namespace CompanyExpenses.Api.Controllers;
 
+/// <summary>
+/// Controller for role management operations.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class RolesController : ControllerBase
@@ -18,13 +21,16 @@ public class RolesController : ControllerBase
     }
 
     /// <summary>
-    /// Gets all roles from auth database
+    /// Retrieves all available roles from the authentication database.
     /// </summary>
+    /// <returns>A list of all roles with their IDs and names.</returns>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<RoleDto>>> GetRoles()
     {
         try
         {
+            _logger.LogInformation("Fetching all roles");
+
             var roles = await _authContext.Roles
                 .Select(r => new RoleDto
                 {
@@ -33,6 +39,7 @@ public class RolesController : ControllerBase
                 })
                 .ToListAsync();
 
+            _logger.LogInformation("Retrieved {Count} roles", roles.Count);
             return Ok(roles);
         }
         catch (Exception ex)
@@ -43,6 +50,9 @@ public class RolesController : ControllerBase
     }
 }
 
+/// <summary>
+/// Data transfer object for role information.
+/// </summary>
 public class RoleDto
 {
     public string Id { get; set; } = string.Empty;

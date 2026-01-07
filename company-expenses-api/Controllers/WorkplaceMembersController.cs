@@ -11,7 +11,8 @@ using System.Security.Claims;
 namespace CompanyExpenses.Api.Controllers;
 
 /// <summary>
-/// Controller for workplace member management - refactored to use Service layer
+/// Controller for workplace member and user management operations.
+/// Handles user statistics, activation/deactivation, role changes, and workplace assignments.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -35,13 +36,16 @@ public class WorkplaceMembersController : ControllerBase
     }
 
     /// <summary>
-    /// Get users with stats
+    /// Retrieves all users with their statistics including expense counts and totals.
     /// </summary>
+    /// <param name="includeInactive">Whether to include inactive users in the result.</param>
+    /// <returns>A list of users with their statistics.</returns>
     [HttpGet("users-with-stats")]
     public async Task<ActionResult> GetUsersWithStats([FromQuery] bool includeInactive = false)
     {
         try
         {
+            _logger.LogInformation("Fetching users with stats, includeInactive: {IncludeInactive}", includeInactive);
             var users = await _authDb.NetUsers
                 .Where(u => includeInactive || u.IsActive)
                 .ToListAsync();
@@ -101,13 +105,15 @@ public class WorkplaceMembersController : ControllerBase
     }
 
     /// <summary>
-    /// Get inactive users
+    /// Retrieves only inactive users with their statistics.
     /// </summary>
+    /// <returns>A list of inactive users with their statistics.</returns>
     [HttpGet("users-with-stats/inactive")]
     public async Task<ActionResult> GetInactiveUsers()
     {
         try
         {
+            _logger.LogInformation("Fetching inactive users with stats");
             var users = await _authDb.NetUsers
                 .Where(u => !u.IsActive)
                 .ToListAsync();
@@ -167,13 +173,16 @@ public class WorkplaceMembersController : ControllerBase
     }
 
     /// <summary>
-    /// Get user detail
+    /// Retrieves detailed information about a specific user including memberships, expenses, and approvals.
     /// </summary>
+    /// <param name="userId">The unique identifier of the user.</param>
+    /// <returns>Detailed user information or NotFound if user doesn't exist.</returns>
     [HttpGet("user/{userId}/detail")]
     public async Task<ActionResult> GetUserDetail(string userId)
     {
         try
         {
+            _logger.LogInformation("Fetching detail for user {UserId}", userId);
             var user = await _authDb.NetUsers.FindAsync(userId);
             if (user == null)
                 return NotFound(new { message = "User not found" });
@@ -313,20 +322,27 @@ public class WorkplaceMembersController : ControllerBase
     }
 
     /// <summary>
-    /// Deactivate user
+    /// Deactivates a user account, preventing them from logging in.
     /// </summary>
+    /// <param name="userId">The unique identifier of the user to deactivate.</param>
+    /// <returns>Success message or error response.</returns>
     [HttpPatch("user/{userId}/deactivate")]
     public async Task<ActionResult> DeactivateUser(string userId)
     {
         try
         {
+            _logger.LogInformation("Deactivating user {UserId}", userId);
             var user = await _authDb.NetUsers.FindAsync(userId);
             if (user == null)
+            {
+                _logger.LogWarning("User not found for deactivation: {UserId}", userId);
                 return NotFound(new { message = "User not found" });
+            }
 
             user.IsActive = false;
             await _authDb.SaveChangesAsync();
 
+            _logger.LogInformation("User {UserId} deactivated successfully", userId);
             return Ok(new { message = "User deactivated successfully" });
         }
         catch (Exception ex)
@@ -337,20 +353,27 @@ public class WorkplaceMembersController : ControllerBase
     }
 
     /// <summary>
-    /// Reactivate user
+    /// Reactivates a previously deactivated user account.
     /// </summary>
+    /// <param name="userId">The unique identifier of the user to reactivate.</param>
+    /// <returns>Success message or error response.</returns>
     [HttpPatch("user/{userId}/reactivate")]
     public async Task<ActionResult> ReactivateUser(string userId)
     {
         try
         {
+            _logger.LogInformation("Reactivating user {UserId}", userId);
             var user = await _authDb.NetUsers.FindAsync(userId);
             if (user == null)
+            {
+                _logger.LogWarning("User not found for reactivation: {UserId}", userId);
                 return NotFound(new { message = "User not found" });
+            }
 
             user.IsActive = true;
             await _authDb.SaveChangesAsync();
 
+            _logger.LogInformation("User {UserId} reactivated successfully", userId);
             return Ok(new { message = "User reactivated successfully" });
         }
         catch (Exception ex)
@@ -361,23 +384,30 @@ public class WorkplaceMembersController : ControllerBase
     }
 
     /// <summary>
-    /// Delete user
+    /// Permanently deletes a user. Only possible if the user has no expenses.
     /// </summary>
+    /// <param name="userId">The unique identifier of the user to delete.</param>
+    /// <returns>Success message or error response if user has dependencies.</returns>
     [HttpDelete("user/{userId}")]
     public async Task<ActionResult> DeleteUser(string userId)
     {
         try
         {
+            _logger.LogInformation("Attempting to delete user {UserId}", userId);
             var user = await _authDb.NetUsers.FindAsync(userId);
             if (user == null)
+            {
+                _logger.LogWarning("User not found for deletion: {UserId}", userId);
                 return NotFound(new { message = "User not found" });
+            }
 
-            // Check if user has expenses or is a member of workplaces
             var hasExpenses = await _appDb.Expenses.AnyAsync(e => e.EmployeeUserId == userId);
             if (hasExpenses)
+            {
+                _logger.LogWarning("Cannot delete user {UserId} - user has expenses", userId);
                 return BadRequest(new { message = "Cannot delete user with expenses" });
+            }
 
-            // Remove from workplaces
             var memberships = await _appDb.WorkplaceMembers.Where(m => m.UserId == userId).ToListAsync();
             _appDb.WorkplaceMembers.RemoveRange(memberships);
             await _appDb.SaveChangesAsync();
@@ -385,6 +415,7 @@ public class WorkplaceMembersController : ControllerBase
             _authDb.NetUsers.Remove(user);
             await _authDb.SaveChangesAsync();
 
+            _logger.LogInformation("User {UserId} deleted successfully", userId);
             return Ok(new { message = "User deleted successfully" });
         }
         catch (Exception ex)
@@ -395,26 +426,34 @@ public class WorkplaceMembersController : ControllerBase
     }
 
     /// <summary>
-    /// Change user role
+    /// Changes the role assigned to a user.
     /// </summary>
+    /// <param name="userId">The unique identifier of the user.</param>
+    /// <param name="request">The request containing the new role ID.</param>
+    /// <returns>Success message or error response.</returns>
     [HttpPatch("user/{userId}/role")]
     public async Task<ActionResult> ChangeUserRole(string userId, [FromBody] ChangeRoleRequest request)
     {
         try
         {
+            _logger.LogInformation("Changing role for user {UserId} to role {RoleId}", userId, request.RoleId);
             var user = await _authDb.NetUsers.FindAsync(userId);
             if (user == null)
+            {
+                _logger.LogWarning("User not found for role change: {UserId}", userId);
                 return NotFound(new { message = "User not found" });
+            }
 
             var role = await _authDb.Roles.FindAsync(request.RoleId);
             if (role == null)
+            {
+                _logger.LogWarning("Role not found: {RoleId}", request.RoleId);
                 return NotFound(new { message = "Role not found" });
+            }
 
-            // Remove existing roles
             var existingRoles = await _authDb.UserRoles.Where(ur => ur.UserId == userId).ToListAsync();
             _authDb.UserRoles.RemoveRange(existingRoles);
 
-            // Add new role
             _authDb.UserRoles.Add(new Microsoft.AspNetCore.Identity.IdentityUserRole<string>
             {
                 UserId = userId,
@@ -423,6 +462,7 @@ public class WorkplaceMembersController : ControllerBase
 
             await _authDb.SaveChangesAsync();
 
+            _logger.LogInformation("Role changed successfully for user {UserId}", userId);
             return Ok(new { message = "Role changed successfully" });
         }
         catch (Exception ex)
@@ -433,26 +473,38 @@ public class WorkplaceMembersController : ControllerBase
     }
 
     /// <summary>
-    /// Add user to workplace
+    /// Adds a user to a workplace as a member.
     /// </summary>
+    /// <param name="userId">The unique identifier of the user.</param>
+    /// <param name="request">The request containing workplace details and position.</param>
+    /// <returns>Success message or error response.</returns>
     [HttpPost("user/{userId}/workplace")]
     public async Task<ActionResult> AddUserToWorkplace(string userId, [FromBody] AddToWorkplaceRequest request)
     {
         try
         {
+            _logger.LogInformation("Adding user {UserId} to workplace {WorkplaceId}", userId, request.WorkplaceId);
             var user = await _authDb.NetUsers.FindAsync(userId);
             if (user == null)
+            {
+                _logger.LogWarning("User not found: {UserId}", userId);
                 return NotFound(new { message = "User not found" });
+            }
 
             var workplace = await _appDb.Workplaces.FindAsync(request.WorkplaceId);
             if (workplace == null)
+            {
+                _logger.LogWarning("Workplace not found: {WorkplaceId}", request.WorkplaceId);
                 return NotFound(new { message = "Workplace not found" });
+            }
 
-            // Check if already a member
             var existing = await _appDb.WorkplaceMembers
                 .FirstOrDefaultAsync(m => m.UserId == userId && m.WorkplaceId == request.WorkplaceId);
             if (existing != null)
+            {
+                _logger.LogWarning("User {UserId} is already a member of workplace {WorkplaceId}", userId, request.WorkplaceId);
                 return BadRequest(new { message = "User is already a member of this workplace" });
+            }
 
             var member = new Models.Entities.WorkplaceMember
             {
@@ -468,6 +520,7 @@ public class WorkplaceMembersController : ControllerBase
             _appDb.WorkplaceMembers.Add(member);
             await _appDb.SaveChangesAsync();
 
+            _logger.LogInformation("User {UserId} added to workplace {WorkplaceId} successfully", userId, request.WorkplaceId);
             return Ok(new { message = "User added to workplace successfully" });
         }
         catch (Exception ex)
@@ -478,99 +531,147 @@ public class WorkplaceMembersController : ControllerBase
     }
 
     /// <summary>
-    /// Get all members of a workplace
+    /// Retrieves all members of a specific workplace.
     /// </summary>
+    /// <param name="workplaceId">The unique identifier of the workplace.</param>
+    /// <returns>A list of workplace members.</returns>
     [HttpGet("workplace/{workplaceId}")]
     public async Task<ActionResult> GetWorkplaceMembers(Guid workplaceId)
     {
+        _logger.LogInformation("Fetching members for workplace {WorkplaceId}", workplaceId);
         var result = await _memberService.GetMembersByWorkplaceAsync(workplaceId);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Get member by ID
+    /// Retrieves a specific member by ID within a workplace.
     /// </summary>
+    /// <param name="workplaceId">The unique identifier of the workplace.</param>
+    /// <param name="id">The unique identifier of the member.</param>
+    /// <returns>The member details if found, otherwise NotFound.</returns>
     [HttpGet("{workplaceId}/{id}")]
     public async Task<ActionResult> GetMember(Guid workplaceId, Guid id)
     {
+        _logger.LogInformation("Fetching member {MemberId} from workplace {WorkplaceId}", id, workplaceId);
         var result = await _memberService.GetMemberByIdAsync(workplaceId, id);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Add a member to workplace
+    /// Adds a new member to a workplace.
     /// </summary>
+    /// <param name="workplaceId">The unique identifier of the workplace.</param>
+    /// <param name="dto">The member creation data transfer object.</param>
+    /// <returns>The created member with its ID, or an error response.</returns>
     [HttpPost("{workplaceId}")]
     public async Task<ActionResult> AddMember(Guid workplaceId, [FromBody] CreateWorkplaceMemberDto dto)
     {
         var userId = GetCurrentUserId() ?? "system";
+        _logger.LogInformation("Adding member to workplace {WorkplaceId} by user {UserId}", workplaceId, userId);
+
         var result = await _memberService.AddMemberAsync(workplaceId, dto, userId);
 
         if (result.IsSuccess && result.Data != null)
         {
+            _logger.LogInformation("Member added successfully with ID: {MemberId}", result.Data.Id);
             return CreatedAtAction(nameof(GetMember),
                 new { workplaceId = workplaceId, id = result.Data.Id },
                 result.Data);
         }
 
+        _logger.LogWarning("Failed to add member: {ErrorMessage}", result.ErrorMessage);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Update member
+    /// Updates an existing workplace member's information.
     /// </summary>
+    /// <param name="workplaceId">The unique identifier of the workplace.</param>
+    /// <param name="id">The unique identifier of the member to update.</param>
+    /// <param name="dto">The member update data transfer object.</param>
+    /// <returns>NoContent on success, or error response.</returns>
     [HttpPut("{workplaceId}/{id}")]
     public async Task<IActionResult> UpdateMember(Guid workplaceId, Guid id, [FromBody] UpdateWorkplaceMemberDto dto)
     {
+        _logger.LogInformation("Updating member {MemberId} in workplace {WorkplaceId}", id, workplaceId);
         var result = await _memberService.UpdateMemberAsync(workplaceId, id, dto);
+
         if (result.IsSuccess)
         {
+            _logger.LogInformation("Member {MemberId} updated successfully", id);
             return NoContent();
         }
+
+        _logger.LogWarning("Failed to update member {MemberId}: {ErrorMessage}", id, result.ErrorMessage);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Remove member from workplace
+    /// Removes a member from a workplace.
     /// </summary>
+    /// <param name="workplaceId">The unique identifier of the workplace.</param>
+    /// <param name="id">The unique identifier of the member to remove.</param>
+    /// <returns>NoContent on success, or error response.</returns>
     [HttpDelete("{workplaceId}/{id}")]
     public async Task<IActionResult> RemoveMember(Guid workplaceId, Guid id)
     {
+        _logger.LogInformation("Removing member {MemberId} from workplace {WorkplaceId}", id, workplaceId);
         var result = await _memberService.RemoveMemberAsync(workplaceId, id);
+
         if (result.IsSuccess)
         {
+            _logger.LogInformation("Member {MemberId} removed successfully", id);
             return NoContent();
         }
+
+        _logger.LogWarning("Failed to remove member {MemberId}: {ErrorMessage}", id, result.ErrorMessage);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Get workplaces for a user
+    /// Retrieves all workplaces that a user is a member of.
     /// </summary>
+    /// <param name="userId">The unique identifier of the user.</param>
+    /// <returns>A list of workplaces the user belongs to.</returns>
     [HttpGet("user/{userId}")]
     public async Task<ActionResult> GetUserWorkplaces(string userId)
     {
+        _logger.LogInformation("Fetching workplaces for user {UserId}", userId);
         var result = await _memberService.GetWorkplacesByUserAsync(userId);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Check if user is manager of workplace
+    /// Checks if a user is a manager of a specific workplace.
     /// </summary>
+    /// <param name="workplaceId">The unique identifier of the workplace.</param>
+    /// <param name="userId">The unique identifier of the user.</param>
+    /// <returns>Boolean indicating manager status.</returns>
     [HttpGet("is-manager/{workplaceId}/{userId}")]
     public async Task<ActionResult> IsUserManager(Guid workplaceId, string userId)
     {
+        _logger.LogDebug("Checking if user {UserId} is manager of workplace {WorkplaceId}", userId, workplaceId);
         var result = await _memberService.IsUserManagerAsync(userId, workplaceId);
         return HandleResult(result);
     }
 
     #region Helper Methods
 
+    /// <summary>
+    /// Gets the current authenticated user's ID from the claims.
+    /// </summary>
+    /// <returns>The user ID if authenticated, otherwise null.</returns>
     private string? GetCurrentUserId()
     {
         return User.FindFirstValue(ClaimTypes.NameIdentifier);
     }
 
+    /// <summary>
+    /// Handles service result and returns appropriate HTTP response for generic results.
+    /// </summary>
+    /// <typeparam name="T">The type of data in the result.</typeparam>
+    /// <param name="result">The service result to handle.</param>
+    /// <returns>Appropriate HTTP response based on result status.</returns>
     private ActionResult HandleResult<T>(ServiceResult<T> result)
     {
         if (result.IsSuccess)
@@ -587,6 +688,11 @@ public class WorkplaceMembersController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// Handles service result and returns appropriate HTTP response.
+    /// </summary>
+    /// <param name="result">The service result to handle.</param>
+    /// <returns>Appropriate HTTP response based on result status.</returns>
     private ActionResult HandleResult(ServiceResult result)
     {
         if (result.IsSuccess)

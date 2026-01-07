@@ -11,7 +11,7 @@ using System.Security.Cryptography;
 namespace CompanyExpenses.Services.Implementations;
 
 /// <summary>
-/// Invitation business service implementation
+/// Service implementation for invitation management including creation, verification, and acceptance workflows.
 /// </summary>
 public class InvitationService : IInvitationService
 {
@@ -38,34 +38,61 @@ public class InvitationService : IInvitationService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Retrieves all invitations with workplace information.
+    /// </summary>
+    /// <returns>A list of all invitations.</returns>
     public async Task<ServiceResult<IEnumerable<InvitationDto>>> GetAllInvitationsAsync()
     {
+        _logger.LogInformation("Fetching all invitations");
         var invitations = await _invitationRepository.GetAllWithWorkplaceAsync();
 
         var result = invitations.Select(MapToDto);
         return ServiceResult<IEnumerable<InvitationDto>>.Success(result);
     }
 
+    /// <summary>
+    /// Retrieves a specific invitation by ID.
+    /// </summary>
+    /// <param name="id">The invitation ID.</param>
+    /// <returns>The invitation if found, otherwise NotFound.</returns>
     public async Task<ServiceResult<InvitationDto>> GetInvitationByIdAsync(Guid id)
     {
+        _logger.LogInformation("Fetching invitation {InvitationId}", id);
         var invitation = await _invitationRepository.GetByIdWithWorkplaceAsync(id);
         if (invitation == null)
+        {
+            _logger.LogWarning("Invitation not found: {InvitationId}", id);
             return ServiceResult<InvitationDto>.NotFound("Invitation not found");
+        }
 
         return ServiceResult<InvitationDto>.Success(MapToDto(invitation));
     }
 
+    /// <summary>
+    /// Verifies an invitation token and checks if it's still valid.
+    /// </summary>
+    /// <param name="token">The invitation token.</param>
+    /// <returns>The invitation if valid, or error status.</returns>
     public async Task<ServiceResult<InvitationDto>> VerifyInvitationAsync(string token)
     {
+        _logger.LogInformation("Verifying invitation token");
         var invitation = await _invitationRepository.GetByTokenAsync(token);
         if (invitation == null)
+        {
+            _logger.LogWarning("Invalid invitation token");
             return ServiceResult<InvitationDto>.NotFound("Invitation not found");
+        }
 
         if (invitation.Status != InvitationStatus.Pending)
+        {
+            _logger.LogWarning("Invitation already used: {InvitationId}", invitation.Id);
             return ServiceResult<InvitationDto>.BadRequest("Invitation has already been used");
+        }
 
         if (invitation.ExpiresAt < DateTime.UtcNow)
         {
+            _logger.LogWarning("Invitation expired: {InvitationId}", invitation.Id);
             invitation.Status = InvitationStatus.Expired;
             await _invitationRepository.SaveChangesAsync();
             return ServiceResult<InvitationDto>.BadRequest("Invitation has expired");
@@ -74,8 +101,15 @@ public class InvitationService : IInvitationService
         return ServiceResult<InvitationDto>.Success(MapToDto(invitation));
     }
 
+    /// <summary>
+    /// Creates a new invitation and sends an email to the invitee.
+    /// </summary>
+    /// <param name="dto">The invitation creation data.</param>
+    /// <param name="userId">The ID of the user sending the invitation.</param>
+    /// <returns>The created invitation.</returns>
     public async Task<ServiceResult<InvitationDto>> CreateInvitationAsync(CreateInvitationDto dto, string userId)
     {
+        _logger.LogInformation("Creating invitation for {Email} by user {UserId}", dto.Email, userId);
         // Check for existing pending invitation
         if (await _invitationRepository.HasPendingInvitationAsync(dto.Email))
             return ServiceResult<InvitationDto>.BadRequest("User with this email already has a pending invitation");
@@ -121,17 +155,31 @@ public class InvitationService : IInvitationService
         return ServiceResult<InvitationDto>.Success(MapToDto(invitation));
     }
 
+    /// <summary>
+    /// Accepts an invitation and optionally adds the user to the associated workplace.
+    /// </summary>
+    /// <param name="id">The invitation ID.</param>
+    /// <param name="userId">The ID of the accepting user.</param>
+    /// <returns>Success or failure result.</returns>
     public async Task<ServiceResult> AcceptInvitationAsync(Guid id, string userId)
     {
+        _logger.LogInformation("Accepting invitation {InvitationId} by user {UserId}", id, userId);
         var invitation = await _invitationRepository.GetByIdWithWorkplaceAsync(id);
         if (invitation == null)
+        {
+            _logger.LogWarning("Invitation not found: {InvitationId}", id);
             return ServiceResult.NotFound("Invitation not found");
+        }
 
         if (invitation.Status != InvitationStatus.Pending)
+        {
+            _logger.LogWarning("Invitation already used: {InvitationId}", id);
             return ServiceResult.BadRequest("Invitation has already been used");
+        }
 
         if (invitation.ExpiresAt < DateTime.UtcNow)
         {
+            _logger.LogWarning("Invitation expired: {InvitationId}", id);
             invitation.Status = InvitationStatus.Expired;
             await _invitationRepository.SaveChangesAsync();
             return ServiceResult.BadRequest("Invitation has expired");
@@ -162,38 +210,70 @@ public class InvitationService : IInvitationService
         return ServiceResult.Success();
     }
 
+    /// <summary>
+    /// Cancels a pending invitation.
+    /// </summary>
+    /// <param name="id">The invitation ID.</param>
+    /// <returns>Success or failure result.</returns>
     public async Task<ServiceResult> CancelInvitationAsync(Guid id)
     {
+        _logger.LogInformation("Cancelling invitation {InvitationId}", id);
         var invitation = await _invitationRepository.GetByIdAsync(id);
         if (invitation == null)
+        {
+            _logger.LogWarning("Invitation not found: {InvitationId}", id);
             return ServiceResult.NotFound("Invitation not found");
+        }
 
         invitation.Status = InvitationStatus.Cancelled;
         await _invitationRepository.SaveChangesAsync();
 
+        _logger.LogInformation("Invitation cancelled: {InvitationId}", id);
         return ServiceResult.Success();
     }
 
+    /// <summary>
+    /// Permanently deletes an invitation from the database.
+    /// </summary>
+    /// <param name="id">The invitation ID.</param>
+    /// <returns>Success or failure result.</returns>
     public async Task<ServiceResult> DeleteInvitationAsync(Guid id)
     {
+        _logger.LogInformation("Deleting invitation {InvitationId}", id);
         var invitation = await _invitationRepository.GetByIdAsync(id);
         if (invitation == null)
+        {
+            _logger.LogWarning("Invitation not found: {InvitationId}", id);
             return ServiceResult.NotFound("Invitation not found");
+        }
 
         _invitationRepository.Remove(invitation);
         await _invitationRepository.SaveChangesAsync();
 
+        _logger.LogInformation("Invitation deleted: {InvitationId}", id);
         return ServiceResult.Success();
     }
 
+    /// <summary>
+    /// Resends an invitation with a refreshed token and expiration date.
+    /// </summary>
+    /// <param name="id">The invitation ID.</param>
+    /// <returns>The updated invitation.</returns>
     public async Task<ServiceResult<InvitationDto>> ResendInvitationAsync(Guid id)
     {
+        _logger.LogInformation("Resending invitation {InvitationId}", id);
         var invitation = await _invitationRepository.GetByIdWithWorkplaceAsync(id);
         if (invitation == null)
+        {
+            _logger.LogWarning("Invitation not found: {InvitationId}", id);
             return ServiceResult<InvitationDto>.NotFound("Invitation not found");
+        }
 
         if (invitation.Status == InvitationStatus.Accepted)
+        {
+            _logger.LogWarning("Cannot resend accepted invitation: {InvitationId}", id);
             return ServiceResult<InvitationDto>.BadRequest("Cannot resend an accepted invitation");
+        }
 
         // Refresh token and expiration
         invitation.Token = GenerateSecureToken();
@@ -216,6 +296,9 @@ public class InvitationService : IInvitationService
         return ServiceResult<InvitationDto>.Success(MapToDto(invitation));
     }
 
+    /// <summary>
+    /// Maps an Invitation entity to its DTO representation.
+    /// </summary>
     private static InvitationDto MapToDto(Invitation invitation) => new()
     {
         Id = invitation.Id,
@@ -238,6 +321,9 @@ public class InvitationService : IInvitationService
         } : null
     };
 
+    /// <summary>
+    /// Generates a cryptographically secure random token for invitation links.
+    /// </summary>
     private static string GenerateSecureToken()
     {
         var randomBytes = new byte[32];

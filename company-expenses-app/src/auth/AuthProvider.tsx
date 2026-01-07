@@ -32,15 +32,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      // Call API logout endpoint
       await apiProxy.post("/api/auth/logout");
       setUser(null);
-
-      // Redirect to auth server logout
       window.location.href = `${AUTH_CONFIG.authServerUrl}/Account/Logout`;
     } catch (error) {
       console.error("Logout failed:", error);
-      // Force logout locally even if API call fails
       setUser(null);
       window.location.href = "/";
     }

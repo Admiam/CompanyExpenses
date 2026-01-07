@@ -69,7 +69,6 @@ export default function ExpensesPage() {
 
   const [editingExpense, setEditingExpense] = useState<ExpenseFormType | null>(null);
 
-  // Load expenses from API
   const loadExpenses = async () => {
     try {
       setIsLoading(true);
@@ -100,7 +99,7 @@ export default function ExpensesPage() {
       toast.success(t("expenses.createSuccess"));
 
       setIsModalOpen(false);
-      loadExpenses(); // Refresh expense list
+      loadExpenses();
     } catch (error) {
       console.error("Failed to create expense:", error);
       toast.error(t("expenses.createError"));
@@ -127,7 +126,7 @@ export default function ExpensesPage() {
         toast.success(t("expenses.rejectSuccess"));
       }
 
-      loadExpenses(); // Refresh expense list
+      loadExpenses();
       setApprovalModalOpen(false);
     } catch (error) {
       console.error("Failed to process approval:", error);
@@ -141,7 +140,6 @@ export default function ExpensesPage() {
   };
 
   const handleRowClick = (expenseId: string, event: React.MouseEvent) => {
-    // Ignore clicks on buttons
     const target = event.target as HTMLElement;
     if (target.closest("button")) {
       return;
@@ -149,7 +147,6 @@ export default function ExpensesPage() {
     handleShowDetail(expenseId);
   };
 
-  // Calculate stats
   const totalAmount = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const pendingExpenses = expenses.filter((exp) => exp.status === "Pending");
   const pendingAmount = pendingExpenses.reduce((sum, exp) => sum + exp.amount, 0);

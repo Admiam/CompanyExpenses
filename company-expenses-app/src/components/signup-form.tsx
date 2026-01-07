@@ -32,9 +32,6 @@ export function SignUpForm({ className, ...props }: React.ComponentProps<"div">)
       const response = await restClient.post<RegisterResponse>("/api/register", newUser);
       console.log("Registered:", response);
 
-      // případně uložíš token do localStorage:
-      // localStorage.setItem("token", response.token || "")
-
       navigate("/dashboard");
     } catch (err) {
       console.error("Registration failed:", err);
@@ -53,31 +50,26 @@ export function SignUpForm({ className, ...props }: React.ComponentProps<"div">)
                 <p className="text-muted-foreground text-balance">Sign up to join Company Expenses</p>
               </div>
 
-              {/* Full Name */}
               <div className="grid gap-3">
                 <Label htmlFor="name">Full Name</Label>
                 <Input id="name" type="text" placeholder="John Doe" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
 
-              {/* Email */}
               <div className="grid gap-3">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" placeholder="m@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
 
-              {/* Password */}
               <div className="grid gap-3">
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
               </div>
 
-              {/* Confirm Password */}
               <div className="grid gap-3">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
               </div>
 
-              {/* Role Selection */}
               <div className="grid gap-3">
                 <Label htmlFor="role">Role</Label>
                 <Select value={role} onValueChange={(value: "employee" | "manager") => setRole(value)}>
@@ -91,12 +83,10 @@ export function SignUpForm({ className, ...props }: React.ComponentProps<"div">)
                 </Select>
               </div>
 
-              {/* Submit Button */}
               <Button type="submit" className="w-full">
                 Sign Up
               </Button>
 
-              {/* Switch to Login */}
               <p className="text-sm text-center text-muted-foreground">
                 Already have an account?{" "}
                 <a href="/login" className="underline hover:text-primary">

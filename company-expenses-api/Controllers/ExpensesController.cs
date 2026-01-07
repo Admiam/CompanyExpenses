@@ -8,7 +8,7 @@ using ApiDTOs = CompanyExpenses.Api.DTOs;
 namespace CompanyExpenses.Api.Controllers;
 
 /// <summary>
-/// Controller for expense management - refactored to use Service layer
+/// Controller for expense management operations including CRUD, approval, and rejection workflows.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -26,14 +26,21 @@ public class ExpensesController : ControllerBase
     }
 
     /// <summary>
-    /// Get filtered list of expenses
+    /// Retrieves a filtered list of expenses based on query parameters.
     /// </summary>
+    /// <param name="workplaceId">workplace ID to filter by.</param>
+    /// <param name="employeeUserId">employee user ID to filter by.</param>
+    /// <param name="status">status to filter by (Pending, Approved, Rejected).</param>
+    /// <returns>A list of expenses matching the filter criteria.</returns>
     [HttpGet]
     public async Task<ActionResult> GetExpenses(
         [FromQuery] Guid? workplaceId = null,
         [FromQuery] string? employeeUserId = null,
         [FromQuery] string? status = null)
     {
+        _logger.LogInformation("Fetching expenses with filters - WorkplaceId: {WorkplaceId}, EmployeeUserId: {EmployeeUserId}, Status: {Status}",
+            workplaceId, employeeUserId, status);
+
         var filter = new ExpenseFilterDto
         {
             WorkplaceId = workplaceId,
@@ -46,28 +53,42 @@ public class ExpensesController : ControllerBase
     }
 
     /// <summary>
-    /// Get expense by ID
+    /// Retrieves a single expense by its unique identifier.
     /// </summary>
+    /// <param name="id">The unique identifier of the expense.</param>
+    /// <returns>The expense details if found, otherwise NotFound.</returns>
     [HttpGet("{id}")]
     public async Task<ActionResult> GetExpense(Guid id)
     {
+        _logger.LogInformation("Fetching expense with ID: {ExpenseId}", id);
         var result = await _expenseService.GetExpenseByIdAsync(id);
+
+        if (!result.IsSuccess)
+        {
+            _logger.LogWarning("Expense not found with ID: {ExpenseId}", id);
+        }
+
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Create a new expense with attachments
+    /// Creates a new expense with optional attachments.
     /// </summary>
+    /// <param name="dto">The expense creation data transfer object.</param>
+    /// <returns>The created expense with its ID, or an error response.</returns>
     [HttpPost]
     public async Task<ActionResult> CreateExpense([FromBody] ApiDTOs.CreateExpenseDto dto)
     {
         var userId = GetCurrentUserId();
         if (userId == null)
         {
+            _logger.LogWarning("Unauthorized attempt to create expense - user not authenticated");
             return Unauthorized(new { message = "User not authenticated" });
         }
 
-        // Map to service DTO
+        _logger.LogInformation("Creating expense for user {UserId} - Amount: {Amount} {Currency}",
+            userId, dto.Amount, dto.Currency);
+
         var serviceDto = new CreateExpenseDto
         {
             Description = dto.Description,
@@ -88,38 +109,74 @@ public class ExpensesController : ControllerBase
 
         if (result.IsSuccess && result.Data != null)
         {
+            _logger.LogInformation("Expense created successfully with ID: {ExpenseId}", result.Data.Id);
             return CreatedAtAction(nameof(GetExpense), new { id = result.Data.Id }, result.Data);
         }
 
+        _logger.LogError("Failed to create expense: {ErrorMessage}", result.ErrorMessage);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Update expense amount (only for Pending expenses)
+    /// Updates the amount of an existing expense. Only applicable for expenses with Pending status.
     /// </summary>
+    /// <param name="id">The unique identifier of the expense.</param>
+    /// <param name="request">The request containing the new amount.</param>
+    /// <returns>Success message or error response.</returns>
     [HttpPatch("{id}/amount")]
     public async Task<IActionResult> UpdateExpenseAmount(Guid id, [FromBody] ApiDTOs.UpdateAmountRequest request)
     {
+        _logger.LogInformation("Updating amount for expense {ExpenseId} to {Amount}", id, request.Amount);
         var result = await _expenseService.UpdateExpenseAmountAsync(id, request.Amount);
-        return HandleResult(result, "Částka byla úspěšně aktualizována");
+
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Expense {ExpenseId} amount updated successfully", id);
+        }
+        else
+        {
+            _logger.LogWarning("Failed to update expense {ExpenseId} amount: {ErrorMessage}", id, result.ErrorMessage);
+        }
+
+        return HandleResult(result, "Amount updated successfully");
     }
 
     /// <summary>
-    /// Update expense category (only for Pending expenses)
+    /// Updates the category of an existing expense. Only applicable for expenses with Pending status.
     /// </summary>
+    /// <param name="id">The unique identifier of the expense.</param>
+    /// <param name="request">The request containing the new category ID.</param>
+    /// <returns>Success message or error response.</returns>
     [HttpPatch("{id}/category")]
     public async Task<IActionResult> UpdateExpenseCategory(Guid id, [FromBody] ApiDTOs.UpdateCategoryRequest request)
     {
+        _logger.LogInformation("Updating category for expense {ExpenseId} to {CategoryId}", id, request.CategoryId);
         var result = await _expenseService.UpdateExpenseCategoryAsync(id, request.CategoryId);
-        return HandleResult(result, "Kategorie byla úspěšně aktualizována");
+
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Expense {ExpenseId} category updated successfully", id);
+        }
+        else
+        {
+            _logger.LogWarning("Failed to update expense {ExpenseId} category: {ErrorMessage}", id, result.ErrorMessage);
+        }
+
+        return HandleResult(result, "Category updated successfully");
     }
 
     /// <summary>
-    /// Update expense attachments (only for Pending expenses)
+    /// Updates the attachments of an existing expense. Only applicable for expenses with Pending status.
     /// </summary>
+    /// <param name="id">The unique identifier of the expense.</param>
+    /// <param name="request">The request containing the new attachments.</param>
+    /// <returns>Success message or error response.</returns>
     [HttpPatch("{id}/attachments")]
     public async Task<IActionResult> UpdateExpenseAttachments(Guid id, [FromBody] ApiDTOs.UpdateAttachmentsRequest request)
     {
+        _logger.LogInformation("Updating attachments for expense {ExpenseId}, count: {Count}",
+            id, request.Attachments?.Count ?? 0);
+
         var attachments = request.Attachments?.Select(a => new AttachmentUploadDto
         {
             FileName = a.FileName,
@@ -128,77 +185,137 @@ public class ExpensesController : ControllerBase
         }).ToList();
 
         var result = await _expenseService.UpdateExpenseAttachmentsAsync(id, attachments);
-        return HandleResult(result, "Přílohy byly úspěšně aktualizovány");
+
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Expense {ExpenseId} attachments updated successfully", id);
+        }
+        else
+        {
+            _logger.LogWarning("Failed to update expense {ExpenseId} attachments: {ErrorMessage}", id, result.ErrorMessage);
+        }
+
+        return HandleResult(result, "Attachments updated successfully");
     }
 
     /// <summary>
-    /// Approve expense
+    /// Approves an expense, changing its status to Approved.
     /// </summary>
+    /// <param name="id">The unique identifier of the expense to approve.</param>
+    /// <param name="request">Optional approval request containing a note.</param>
+    /// <returns>Success message or error response.</returns>
     [HttpPost("{id}/approve")]
     public async Task<IActionResult> ApproveExpense(Guid id, [FromBody] ApiDTOs.ApprovalRequest? request = null)
     {
         var userId = GetCurrentUserId();
         if (userId == null)
         {
+            _logger.LogWarning("Unauthorized attempt to approve expense {ExpenseId}", id);
             return Unauthorized(new { message = "User not authenticated" });
         }
 
+        _logger.LogInformation("User {UserId} approving expense {ExpenseId}", userId, id);
         var result = await _expenseService.ApproveExpenseAsync(id, userId, request?.Note);
+
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Expense {ExpenseId} approved successfully by user {UserId}", id, userId);
+        }
+        else
+        {
+            _logger.LogWarning("Failed to approve expense {ExpenseId}: {ErrorMessage}", id, result.ErrorMessage);
+        }
+
         return HandleResult(result, "Expense approved successfully");
     }
 
     /// <summary>
-    /// Reject expense
+    /// Rejects an expense, changing its status to Rejected. A rejection note is required.
     /// </summary>
+    /// <param name="id">The unique identifier of the expense to reject.</param>
+    /// <param name="request">The rejection request containing a mandatory note.</param>
+    /// <returns>Success message or error response.</returns>
     [HttpPost("{id}/reject")]
     public async Task<IActionResult> RejectExpense(Guid id, [FromBody] ApiDTOs.ApprovalRequest request)
     {
         var userId = GetCurrentUserId();
         if (userId == null)
         {
+            _logger.LogWarning("Unauthorized attempt to reject expense {ExpenseId}", id);
             return Unauthorized(new { message = "User not authenticated" });
         }
 
         if (string.IsNullOrWhiteSpace(request?.Note))
         {
+            _logger.LogWarning("Rejection attempt for expense {ExpenseId} without required note", id);
             return BadRequest(new { message = "Rejection note is required" });
         }
 
+        _logger.LogInformation("User {UserId} rejecting expense {ExpenseId}", userId, id);
         var result = await _expenseService.RejectExpenseAsync(id, userId, request.Note);
+
+        if (result.IsSuccess)
+        {
+            _logger.LogInformation("Expense {ExpenseId} rejected successfully by user {UserId}", id, userId);
+        }
+        else
+        {
+            _logger.LogWarning("Failed to reject expense {ExpenseId}: {ErrorMessage}", id, result.ErrorMessage);
+        }
+
         return HandleResult(result, "Expense rejected successfully");
     }
 
     /// <summary>
-    /// Delete expense (soft delete)
+    /// Soft deletes an expense by marking it as deleted.
     /// </summary>
+    /// <param name="id">The unique identifier of the expense to delete.</param>
+    /// <returns>NoContent on success, or error response.</returns>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteExpense(Guid id)
     {
+        _logger.LogInformation("Deleting expense {ExpenseId}", id);
         var result = await _expenseService.DeleteExpenseAsync(id);
+
         if (result.IsSuccess)
         {
+            _logger.LogInformation("Expense {ExpenseId} deleted successfully", id);
             return NoContent();
         }
+
+        _logger.LogWarning("Failed to delete expense {ExpenseId}: {ErrorMessage}", id, result.ErrorMessage);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Get dashboard statistics
+    /// Retrieves dashboard statistics including totals, monthly expenses, and category breakdowns.
     /// </summary>
+    /// <returns>Dashboard statistics data.</returns>
     [HttpGet("dashboard-stats")]
     public async Task<ActionResult> GetDashboardStats()
     {
+        _logger.LogInformation("Fetching dashboard statistics");
         var result = await _expenseService.GetDashboardStatsAsync();
         return HandleResult(result);
     }
 
     #region Helper Methods
 
+    /// <summary>
+    /// Gets the current authenticated user's ID from the claims.
+    /// </summary>
+    /// <returns>The user ID if authenticated, otherwise null.</returns>
     private string? GetCurrentUserId()
     {
         return User.FindFirstValue(ClaimTypes.NameIdentifier);
     }
 
+    /// <summary>
+    /// Handles service result and returns appropriate HTTP response for generic results.
+    /// </summary>
+    /// <typeparam name="T">The type of data in the result.</typeparam>
+    /// <param name="result">The service result to handle.</param>
+    /// <returns>Appropriate HTTP response based on result status.</returns>
     private ActionResult HandleResult<T>(ServiceResult<T> result)
     {
         if (result.IsSuccess)
@@ -215,6 +332,12 @@ public class ExpensesController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// Handles service result and returns appropriate HTTP response with optional success message.
+    /// </summary>
+    /// <param name="result">The service result to handle.</param>
+    /// <param name="successMessage">Optional message to include on success.</param>
+    /// <returns>Appropriate HTTP response based on result status.</returns>
     private ActionResult HandleResult(ServiceResult result, string? successMessage = null)
     {
         if (result.IsSuccess)

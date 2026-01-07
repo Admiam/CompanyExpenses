@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace CompanyExpenses.Services.Implementations;
 
 /// <summary>
-/// Expense business service implementation
+/// Service implementation for expense business logic including CRUD, approval workflows, and reporting.
 /// </summary>
 public class ExpenseService : IExpenseService
 {
@@ -39,8 +39,15 @@ public class ExpenseService : IExpenseService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Retrieves a filtered list of expenses based on the provided filter criteria.
+    /// </summary>
+    /// <param name="filter">Filter criteria including workplace, employee, and status.</param>
+    /// <returns>A list of expenses matching the filter.</returns>
     public async Task<ServiceResult<IEnumerable<ExpenseListDto>>> GetExpensesAsync(ExpenseFilterDto filter)
     {
+        _logger.LogInformation("Fetching expenses with filter - WorkplaceId: {WorkplaceId}, Status: {Status}",
+            filter.WorkplaceId, filter.Status);
         // Parse status from string if provided
         ExpenseStatus? status = null;
         if (!string.IsNullOrEmpty(filter.Status) && Enum.TryParse<ExpenseStatus>(filter.Status, true, out var parsedStatus))
@@ -70,11 +77,20 @@ public class ExpenseService : IExpenseService
         return ServiceResult<IEnumerable<ExpenseListDto>>.Success(result);
     }
 
+    /// <summary>
+    /// Retrieves detailed information about a specific expense including attachments and approvals.
+    /// </summary>
+    /// <param name="id">The unique identifier of the expense.</param>
+    /// <returns>The expense details if found, otherwise NotFound.</returns>
     public async Task<ServiceResult<ExpenseDetailDto>> GetExpenseByIdAsync(Guid id)
     {
+        _logger.LogInformation("Fetching expense details for ID: {ExpenseId}", id);
         var expense = await _expenseRepository.GetByIdWithDetailsAsync(id);
         if (expense == null)
+        {
+            _logger.LogWarning("Expense not found: {ExpenseId}", id);
             return ServiceResult<ExpenseDetailDto>.NotFound("Expense not found");
+        }
 
         var result = new ExpenseDetailDto
         {
@@ -116,8 +132,15 @@ public class ExpenseService : IExpenseService
         return ServiceResult<ExpenseDetailDto>.Success(result);
     }
 
+    /// <summary>
+    /// Creates a new expense with optional attachments. Images are compressed before storage.
+    /// </summary>
+    /// <param name="dto">The expense data including attachments.</param>
+    /// <param name="userId">The ID of the user creating the expense.</param>
+    /// <returns>The created expense details.</returns>
     public async Task<ServiceResult<ExpenseDto>> CreateExpenseAsync(CreateExpenseDto dto, string userId)
     {
+        _logger.LogInformation("Creating expense for user {UserId} in workplace {WorkplaceId}", userId, dto.WorkplaceId);
         try
         {
             var expense = new Expense
@@ -194,30 +217,57 @@ public class ExpenseService : IExpenseService
         }
     }
 
+    /// <summary>
+    /// Updates the amount of a pending expense. Only pending expenses can be modified.
+    /// </summary>
+    /// <param name="id">The expense ID.</param>
+    /// <param name="amount">The new amount value.</param>
+    /// <returns>Success or failure result.</returns>
     public async Task<ServiceResult> UpdateExpenseAmountAsync(Guid id, decimal amount)
     {
+        _logger.LogInformation("Updating expense amount for {ExpenseId} to {Amount}", id, amount);
         var expense = await _expenseRepository.GetByIdAsync(id);
         if (expense == null)
+        {
+            _logger.LogWarning("Expense not found: {ExpenseId}", id);
             return ServiceResult.NotFound("Expense not found");
+        }
 
         if (expense.Status != ExpenseStatus.Pending)
+        {
+            _logger.LogWarning("Cannot update non-pending expense {ExpenseId}, status: {Status}", id, expense.Status);
             return ServiceResult.BadRequest("Can only update pending expenses");
+        }
 
         expense.Amount = amount;
         expense.UpdatedAt = DateTime.UtcNow;
 
         await _expenseRepository.SaveChangesAsync();
+        _logger.LogInformation("Expense amount updated successfully: {ExpenseId}", id);
         return ServiceResult.Success();
     }
 
+    /// <summary>
+    /// Updates the category of a pending expense. Validates that the category has an active limit.
+    /// </summary>
+    /// <param name="id">The expense ID.</param>
+    /// <param name="categoryId">The new category ID.</param>
+    /// <returns>Success or failure result.</returns>
     public async Task<ServiceResult> UpdateExpenseCategoryAsync(Guid id, Guid categoryId)
     {
+        _logger.LogInformation("Updating expense category for {ExpenseId} to {CategoryId}", id, categoryId);
         var expense = await _expenseRepository.GetByIdAsync(id);
         if (expense == null)
+        {
+            _logger.LogWarning("Expense not found: {ExpenseId}", id);
             return ServiceResult.NotFound("Expense not found");
+        }
 
         if (expense.Status != ExpenseStatus.Pending)
+        {
+            _logger.LogWarning("Cannot update non-pending expense {ExpenseId}", id);
             return ServiceResult.BadRequest("Can only update pending expenses");
+        }
 
         // Verify category has active limit for workplace
         var hasLimit = await _limitRepository.HasActiveLimitAsync(expense.WorkplaceId, categoryId);
@@ -228,17 +278,31 @@ public class ExpenseService : IExpenseService
         expense.UpdatedAt = DateTime.UtcNow;
 
         await _expenseRepository.SaveChangesAsync();
+        _logger.LogInformation("Expense category updated successfully: {ExpenseId}", id);
         return ServiceResult.Success();
     }
 
+    /// <summary>
+    /// Replaces all attachments on a pending expense. Old attachments are removed and new ones are compressed.
+    /// </summary>
+    /// <param name="id">The expense ID.</param>
+    /// <param name="attachments">The new attachments to add.</param>
+    /// <returns>Success or failure result.</returns>
     public async Task<ServiceResult> UpdateExpenseAttachmentsAsync(Guid id, List<AttachmentUploadDto>? attachments)
     {
+        _logger.LogInformation("Updating attachments for expense {ExpenseId}", id);
         var expense = await _expenseRepository.GetByIdWithDetailsAsync(id);
         if (expense == null)
+        {
+            _logger.LogWarning("Expense not found: {ExpenseId}", id);
             return ServiceResult.NotFound("Expense not found");
+        }
 
         if (expense.Status != ExpenseStatus.Pending)
+        {
+            _logger.LogWarning("Cannot update non-pending expense {ExpenseId}", id);
             return ServiceResult.BadRequest("Can only update pending expenses");
+        }
 
         // Remove old attachments
         foreach (var attachment in expense.Attachments.ToList())
@@ -278,16 +342,28 @@ public class ExpenseService : IExpenseService
 
         expense.UpdatedAt = DateTime.UtcNow;
         await _expenseRepository.SaveChangesAsync();
+        _logger.LogInformation("Expense attachments updated successfully: {ExpenseId}", id);
         return ServiceResult.Success();
     }
 
+    /// <summary>
+    /// Approves an expense and records the approval action in the history.
+    /// </summary>
+    /// <param name="id">The expense ID.</param>
+    /// <param name="userId">The ID of the approving user.</param>
+    /// <param name="note">Optional approval note.</param>
+    /// <returns>Success or failure result.</returns>
     public async Task<ServiceResult> ApproveExpenseAsync(Guid id, string userId, string? note)
     {
+        _logger.LogInformation("Approving expense {ExpenseId} by user {UserId}", id, userId);
         try
         {
             var expense = await _expenseRepository.GetByIdAsync(id);
             if (expense == null)
+            {
+                _logger.LogWarning("Expense not found for approval: {ExpenseId}", id);
                 return ServiceResult.NotFound("Expense not found");
+            }
 
             expense.Status = ExpenseStatus.Approved;
             expense.LastDecisionAt = DateTime.UtcNow;
@@ -318,16 +394,30 @@ public class ExpenseService : IExpenseService
         }
     }
 
+    /// <summary>
+    /// Rejects an expense with a required rejection note. Records the rejection in the history.
+    /// </summary>
+    /// <param name="id">The expense ID.</param>
+    /// <param name="userId">The ID of the rejecting user.</param>
+    /// <param name="note">Required rejection reason.</param>
+    /// <returns>Success or failure result.</returns>
     public async Task<ServiceResult> RejectExpenseAsync(Guid id, string userId, string note)
     {
+        _logger.LogInformation("Rejecting expense {ExpenseId} by user {UserId}", id, userId);
         try
         {
             if (string.IsNullOrWhiteSpace(note))
+            {
+                _logger.LogWarning("Rejection note required for expense {ExpenseId}", id);
                 return ServiceResult.BadRequest("Rejection note is required");
+            }
 
             var expense = await _expenseRepository.GetByIdAsync(id);
             if (expense == null)
+            {
+                _logger.LogWarning("Expense not found for rejection: {ExpenseId}", id);
                 return ServiceResult.NotFound("Expense not found");
+            }
 
             expense.Status = ExpenseStatus.Rejected;
             expense.LastDecisionAt = DateTime.UtcNow;
@@ -359,21 +449,36 @@ public class ExpenseService : IExpenseService
         }
     }
 
+    /// <summary>
+    /// Soft-deletes an expense by marking it as deleted.
+    /// </summary>
+    /// <param name="id">The expense ID.</param>
+    /// <returns>Success or failure result.</returns>
     public async Task<ServiceResult> DeleteExpenseAsync(Guid id)
     {
+        _logger.LogInformation("Deleting expense {ExpenseId}", id);
         var expense = await _expenseRepository.GetByIdAsync(id);
         if (expense == null)
+        {
+            _logger.LogWarning("Expense not found for deletion: {ExpenseId}", id);
             return ServiceResult.NotFound("Expense not found");
+        }
 
         expense.IsDeleted = true;
         expense.UpdatedAt = DateTime.UtcNow;
 
         await _expenseRepository.SaveChangesAsync();
+        _logger.LogInformation("Expense deleted successfully: {ExpenseId}", id);
         return ServiceResult.Success();
     }
 
+    /// <summary>
+    /// Retrieves dashboard statistics including totals, monthly comparisons, and charts data.
+    /// </summary>
+    /// <returns>Dashboard statistics DTO.</returns>
     public async Task<ServiceResult<DashboardStatsDto>> GetDashboardStatsAsync()
     {
+        _logger.LogInformation("Fetching dashboard statistics");
         var now = DateTime.UtcNow;
         var startOfMonth = DateOnly.FromDateTime(new DateTime(now.Year, now.Month, 1));
         var startOfLastMonth = startOfMonth.AddMonths(-1);

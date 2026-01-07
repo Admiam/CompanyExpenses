@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, XCircle, Mail } from "lucide-react";
+import { Loader2, XCircle, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { AUTH_ENDPOINTS } from "@/lib/auth-config";
 
@@ -68,10 +68,6 @@ export default function RegisterPage() {
     try {
       setIsSubmitting(true);
 
-      // TODO: Call auth server registration endpoint
-      // This should integrate with your company-expenses-auth server
-      // For now, showing what the registration flow would look like:
-
       const registrationData = {
         email: formData.email,
         password: formData.password,
@@ -79,16 +75,10 @@ export default function RegisterPage() {
         invitationToken: token,
       };
 
-      // Example: await authApi.register(registrationData);
       console.log("Registration data:", registrationData);
-
-      // After successful registration, accept the invitation
-      // const userId = response.userId; // Get from registration response
-      // await invitationsApi.acceptInvitation(invitation!.id, { userId });
 
       toast.success("Registration successful! Redirecting to login...");
 
-      // Redirect to login using configured auth server URL
       setTimeout(() => {
         window.location.href = AUTH_ENDPOINTS.login;
       }, 2000);

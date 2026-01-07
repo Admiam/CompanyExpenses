@@ -1,15 +1,9 @@
-/**
- * Common API types and interfaces
- */
-
-// Generic API response wrapper
 export interface ApiResponse<T> {
   data: T;
   message?: string;
   success: boolean;
 }
 
-// Paginated response
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
@@ -18,14 +12,12 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-// Error response
 export interface ApiError {
   message: string;
   code?: string;
   errors?: Record<string, string[]>;
 }
 
-// Auth types
 export interface LoginRequest {
   email: string;
   password: string;
@@ -50,7 +42,6 @@ export interface User {
   role?: string;
 }
 
-// Expense types
 export interface Expense {
   id: string;
   description: string;
@@ -88,7 +79,6 @@ export interface UpdateExpenseRequest extends Partial<CreateExpenseRequest> {
   id: string;
 }
 
-// Workplace types
 export interface Workplace {
   id: string;
   name: string;
@@ -162,7 +152,6 @@ export interface CategoryDependencies {
   canDelete: boolean;
 }
 
-// WorkplaceMember types
 export interface WorkplaceMember {
   id: string;
   workplaceId: string;
@@ -186,7 +175,6 @@ export interface UpdateWorkplaceMemberRequest {
   isManager: boolean;
 }
 
-// User with statistics
 export interface UserWithStats {
   id: string;
   name: string;
@@ -200,7 +188,6 @@ export interface UserWithStats {
   totalExpenses: number;
 }
 
-// User detail types
 export interface UserMembership {
   id: string;
   workplaceId: string;
@@ -279,7 +266,6 @@ export interface UserDetail {
   };
 }
 
-// Invitation types
 import type { InvitationStatusType } from "@/constants/invitation";
 
 export interface Invitation {
@@ -307,7 +293,6 @@ export interface AcceptInvitationRequest {
   userId: string;
 }
 
-// ExpenseCategory types
 export interface ExpenseCategory {
   id: string;
   name: string;
@@ -324,13 +309,11 @@ export interface CreateExpenseCategoryRequest {
 
 export type UpdateExpenseCategoryRequest = Partial<CreateExpenseCategoryRequest>;
 
-// Role types
 export interface Role {
   id: string;
   name: string;
 }
 
-// Dashboard statistics types
 export interface DashboardStats {
   totalExpenses: number;
   monthlyExpenses: number;

@@ -7,10 +7,6 @@ interface RoleProtectedRouteProps {
   requiredRoles: UserRole[];
 }
 
-/**
- * Component that protects routes based on user roles
- * Redirects to dashboard if user doesn't have required role
- */
 export function RoleProtectedRoute({ children, requiredRoles }: RoleProtectedRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
 
@@ -26,10 +22,7 @@ export function RoleProtectedRoute({ children, requiredRoles }: RoleProtectedRou
     return <Navigate to="/login" replace />;
   }
 
-  // Check if user has required role
   if (!hasAnyRole(user?.role, requiredRoles)) {
-    // User is authenticated but doesn't have permission
-    // Redirect to dashboard with error message
     return <Navigate to="/dashboard" replace />;
   }
 

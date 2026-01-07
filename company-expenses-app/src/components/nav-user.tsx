@@ -31,9 +31,7 @@ export function NavUser({
   const { logout } = useAuth();
   const { t } = useTranslation();
 
-  // --- Handlers ---
   const handleAccount = () => {
-    // Redirect to auth server account management
     window.location.href = `${AUTH_CONFIG.authServerUrl}/Account/Manage`;
   };
 

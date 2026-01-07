@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace CompanyExpenses.Services.Implementations;
 
 /// <summary>
-/// Workplace business service implementation
+/// Service implementation for workplace management including CRUD operations and dependency checking.
 /// </summary>
 public class WorkplaceService : IWorkplaceService
 {
@@ -23,8 +23,13 @@ public class WorkplaceService : IWorkplaceService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Retrieves all workplaces with their member information.
+    /// </summary>
+    /// <returns>A list of all workplaces with members.</returns>
     public async Task<ServiceResult<IEnumerable<WorkplaceDto>>> GetAllWorkplacesAsync()
     {
+        _logger.LogInformation("Fetching all workplaces");
         var workplaces = await _workplaceRepository.GetAllWithMembersAsync();
 
         var result = workplaces.Select(w => new WorkplaceDto
@@ -50,11 +55,20 @@ public class WorkplaceService : IWorkplaceService
         return ServiceResult<IEnumerable<WorkplaceDto>>.Success(result);
     }
 
+    /// <summary>
+    /// Retrieves detailed information about a specific workplace including members and limits.
+    /// </summary>
+    /// <param name="id">The workplace ID.</param>
+    /// <returns>Workplace details if found, otherwise NotFound.</returns>
     public async Task<ServiceResult<WorkplaceDetailDto>> GetWorkplaceByIdAsync(Guid id)
     {
+        _logger.LogInformation("Fetching workplace details for ID: {WorkplaceId}", id);
         var workplace = await _workplaceRepository.GetByIdWithDetailsAsync(id);
         if (workplace == null)
+        {
+            _logger.LogWarning("Workplace not found: {WorkplaceId}", id);
             return ServiceResult<WorkplaceDetailDto>.NotFound("Workplace not found");
+        }
 
         var result = new WorkplaceDetailDto
         {
@@ -92,8 +106,15 @@ public class WorkplaceService : IWorkplaceService
         return ServiceResult<WorkplaceDetailDto>.Success(result);
     }
 
+    /// <summary>
+    /// Creates a new workplace with the specified details.
+    /// </summary>
+    /// <param name="dto">The workplace creation data.</param>
+    /// <param name="userId">The ID of the user creating the workplace.</param>
+    /// <returns>The created workplace.</returns>
     public async Task<ServiceResult<WorkplaceDto>> CreateWorkplaceAsync(CreateWorkplaceDto dto, string userId)
     {
+        _logger.LogInformation("Creating workplace '{Name}' by user {UserId}", dto.Name, userId);
         var workplace = new Workplace
         {
             Id = Guid.NewGuid(),
@@ -121,11 +142,21 @@ public class WorkplaceService : IWorkplaceService
         });
     }
 
+    /// <summary>
+    /// Updates an existing workplace's basic information.
+    /// </summary>
+    /// <param name="id">The workplace ID.</param>
+    /// <param name="dto">The updated workplace data.</param>
+    /// <returns>Success or failure result.</returns>
     public async Task<ServiceResult> UpdateWorkplaceAsync(Guid id, UpdateWorkplaceDto dto)
     {
+        _logger.LogInformation("Updating workplace {WorkplaceId}", id);
         var workplace = await _workplaceRepository.GetByIdAsync(id);
         if (workplace == null)
+        {
+            _logger.LogWarning("Workplace not found: {WorkplaceId}", id);
             return ServiceResult.NotFound("Workplace not found");
+        }
 
         workplace.Name = dto.Name;
         workplace.Code = dto.Code;
@@ -134,14 +165,24 @@ public class WorkplaceService : IWorkplaceService
         _workplaceRepository.Update(workplace);
         await _workplaceRepository.SaveChangesAsync();
 
+        _logger.LogInformation("Workplace updated successfully: {WorkplaceId}", id);
         return ServiceResult.Success();
     }
 
+    /// <summary>
+    /// Gets dependency information for a workplace to determine if it can be deleted.
+    /// </summary>
+    /// <param name="id">The workplace ID.</param>
+    /// <returns>Dependency counts and deletion eligibility.</returns>
     public async Task<ServiceResult<WorkplaceDependenciesDto>> GetDependenciesAsync(Guid id)
     {
+        _logger.LogInformation("Checking dependencies for workplace {WorkplaceId}", id);
         var workplace = await _workplaceRepository.GetByIdAsync(id);
         if (workplace == null)
+        {
+            _logger.LogWarning("Workplace not found: {WorkplaceId}", id);
             return ServiceResult<WorkplaceDependenciesDto>.NotFound("Workplace not found");
+        }
 
         var deps = await _workplaceRepository.GetDependenciesAsync(id);
 
@@ -156,15 +197,26 @@ public class WorkplaceService : IWorkplaceService
         });
     }
 
+    /// <summary>
+    /// Deletes a workplace if it has no dependencies (members, limits, invitations, expenses).
+    /// </summary>
+    /// <param name="id">The workplace ID.</param>
+    /// <returns>Success or failure result.</returns>
     public async Task<ServiceResult> DeleteWorkplaceAsync(Guid id)
     {
+        _logger.LogInformation("Attempting to delete workplace {WorkplaceId}", id);
         var workplace = await _workplaceRepository.GetByIdAsync(id);
         if (workplace == null)
+        {
+            _logger.LogWarning("Workplace not found: {WorkplaceId}", id);
             return ServiceResult.NotFound("Workplace not found");
+        }
 
         var deps = await _workplaceRepository.GetDependenciesAsync(id);
         if (!deps.CanDelete)
         {
+            _logger.LogWarning("Cannot delete workplace {WorkplaceId} - has dependencies: Members={MembersCount}, Limits={LimitsCount}, Invitations={InvitationsCount}, Expenses={ExpensesCount}",
+                id, deps.MembersCount, deps.LimitsCount, deps.InvitationsCount, deps.ExpensesCount);
             return ServiceResult.BadRequest($"Cannot delete workplace with existing dependencies. " +
                 $"Members: {deps.MembersCount}, Limits: {deps.LimitsCount}, " +
                 $"Invitations: {deps.InvitationsCount}, Expenses: {deps.ExpensesCount}");

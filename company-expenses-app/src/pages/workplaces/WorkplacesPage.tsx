@@ -42,29 +42,23 @@ export default function WorkplacesPage() {
       setIsLoading(true);
       const data = await workplacesApi.getWorkplaces();
 
-      // Load limits and expenses for each workplace
       const workplacesWithStats = await Promise.all(
         data.map(async (workplace) => {
           try {
-            // Get limits
             const limits = await workplaceLimitsApi.getWorkplaceLimits(workplace.id);
             const currentDate = new Date();
 
-            // Calculate total limit for current period (ALL categories combined)
             const activeLimits = limits.filter((limit) => {
               const from = new Date(limit.periodFrom);
               const to = new Date(limit.periodTo);
               return currentDate >= from && currentDate <= to;
             });
 
-            // Sum all category limits
             const totalLimit = activeLimits.reduce((sum, limit) => sum + limit.limitAmount, 0);
 
-            // Get actual expenses for this workplace
             const expenses = await expensesApi.getExpenses();
             const workplaceExpenses = expenses.filter((e) => e.workplaceId === workplace.id);
 
-            // Calculate current expenses (for active limits period, all categories)
             const currentExpenses = workplaceExpenses
               .filter((expense) => {
                 const expenseDate = new Date(expense.expenseDate);
@@ -76,7 +70,6 @@ export default function WorkplacesPage() {
               })
               .reduce((sum, expense) => sum + expense.amount, 0);
 
-            // Count active (pending) expenses
             const activeExpensesCount = workplaceExpenses.filter((e) => e.status === "Pending").length;
 
             return {
@@ -176,7 +169,7 @@ export default function WorkplacesPage() {
   };
 
   const handleLimitsUpdated = () => {
-    loadWorkplaces(); // Reload to refresh budget calculations
+    loadWorkplaces();
   };
 
   const handleActivate = async (id: string) => {

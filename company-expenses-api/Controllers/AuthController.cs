@@ -4,6 +4,9 @@ using System.Security.Claims;
 
 namespace CompanyExpenses.Api.Controllers;
 
+/// <summary>
+/// Controller for authentication-related operations including user verification and logout.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
@@ -16,16 +19,16 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Zkontroluje autentizaci a vrátí info o uživateli
+    /// Verifies authentication status and returns current user information.
     /// </summary>
+    /// <returns>User information if authenticated, otherwise Unauthorized.</returns>
     [HttpGet("user")]
     public IActionResult GetUser()
     {
-        // Debug logging
-        _logger.LogInformation("=== AUTH CHECK ===");
-        _logger.LogInformation("IsAuthenticated: {IsAuth}", User.Identity?.IsAuthenticated);
-        _logger.LogInformation("Cookie: {Cookie}", Request.Cookies[".AspNetCore.Identity.Application"]);
-        _logger.LogInformation("Headers: {Headers}", string.Join(", ", Request.Headers.Select(h => $"{h.Key}={h.Value}")));
+        _logger.LogInformation("Authentication check initiated");
+        _logger.LogDebug("IsAuthenticated: {IsAuth}, Cookie present: {HasCookie}",
+            User.Identity?.IsAuthenticated,
+            Request.Cookies.ContainsKey(".AspNetCore.Identity.Application"));
 
         if (User.Identity?.IsAuthenticated == true)
         {
@@ -34,7 +37,7 @@ public class AuthController : ControllerBase
             var name = User.FindFirstValue(ClaimTypes.Name);
             var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
 
-            _logger.LogInformation("User authenticated: {Email}", email);
+            _logger.LogInformation("User authenticated successfully: {Email}", email);
 
             return Ok(new
             {
@@ -45,27 +48,27 @@ public class AuthController : ControllerBase
             });
         }
 
-        _logger.LogWarning("User NOT authenticated");
+        _logger.LogWarning("Authentication check failed - user not authenticated");
         return Unauthorized(new { error = "Not authenticated" });
     }
 
     /// <summary>
-    /// Jednoduchá kontrola autentizace
+    /// Simple authentication status check endpoint.
     /// </summary>
+    /// <returns>Object indicating authentication status.</returns>
     [HttpGet("check")]
     public IActionResult CheckAuth()
     {
-        if (User.Identity?.IsAuthenticated == true)
-        {
-            return Ok(new { isAuthenticated = true });
-        }
+        var isAuthenticated = User.Identity?.IsAuthenticated == true;
+        _logger.LogDebug("Auth check result: {IsAuthenticated}", isAuthenticated);
 
-        return Ok(new { isAuthenticated = false });
+        return Ok(new { isAuthenticated });
     }
 
     /// <summary>
-    /// Info o aktuálním uživateli (protected endpoint)
+    /// Protected endpoint that returns detailed information about the current authenticated user.
     /// </summary>
+    /// <returns>Current user's ID, email, name, and roles.</returns>
     [Authorize]
     [HttpGet("me")]
     public IActionResult GetCurrentUser()
@@ -74,6 +77,8 @@ public class AuthController : ControllerBase
         var email = User.FindFirstValue(ClaimTypes.Email);
         var name = User.FindFirstValue(ClaimTypes.Name);
         var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+
+        _logger.LogInformation("Current user info requested for: {Email}", email);
 
         return Ok(new
         {
@@ -85,12 +90,15 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Logout endpoint - vymaže cookie
+    /// Logs out the current user by clearing the authentication cookie.
     /// </summary>
+    /// <returns>Success message confirming logout.</returns>
     [HttpPost("logout")]
     public IActionResult Logout()
     {
-        // Smaž cookie na API straně
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        _logger.LogInformation("User logout initiated: {UserId}", userId);
+
         Response.Cookies.Delete(".AspNetCore.Identity.Application", new CookieOptions
         {
             Path = "/",
@@ -99,6 +107,7 @@ public class AuthController : ControllerBase
             Secure = true
         });
 
+        _logger.LogInformation("User logged out successfully: {UserId}", userId);
         return Ok(new { message = "Logged out successfully" });
     }
 }

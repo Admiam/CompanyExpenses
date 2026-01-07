@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace CompanyExpenses.Api.Controllers;
 
 /// <summary>
-/// Controller for workplace management - refactored to use Service layer
+/// Controller for workplace management operations including CRUD and dependency checking.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -25,87 +25,132 @@ public class WorkplacesController : ControllerBase
     }
 
     /// <summary>
-    /// Get all workplaces
+    /// Retrieves all workplaces in the system.
     /// </summary>
+    /// <returns>A list of all workplaces with their members.</returns>
     [HttpGet]
     public async Task<ActionResult> GetWorkplaces()
     {
+        _logger.LogInformation("Fetching all workplaces");
         var result = await _workplaceService.GetAllWorkplacesAsync();
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Get workplace by ID
+    /// Retrieves a single workplace by its unique identifier.
     /// </summary>
+    /// <param name="id">The unique identifier of the workplace.</param>
+    /// <returns>The workplace details if found, otherwise NotFound.</returns>
     [HttpGet("{id}")]
     public async Task<ActionResult> GetWorkplace(Guid id)
     {
+        _logger.LogInformation("Fetching workplace with ID: {WorkplaceId}", id);
         var result = await _workplaceService.GetWorkplaceByIdAsync(id);
+
+        if (!result.IsSuccess)
+        {
+            _logger.LogWarning("Workplace not found with ID: {WorkplaceId}", id);
+        }
+
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Create a new workplace
+    /// Creates a new workplace in the system.
     /// </summary>
+    /// <param name="dto">The workplace creation data transfer object.</param>
+    /// <returns>The created workplace with its ID, or an error response.</returns>
     [HttpPost]
     public async Task<ActionResult> CreateWorkplace([FromBody] CreateWorkplaceDto dto)
     {
         var userId = GetCurrentUserId() ?? "system";
+        _logger.LogInformation("Creating workplace '{WorkplaceName}' by user {UserId}", dto.Name, userId);
+
         var result = await _workplaceService.CreateWorkplaceAsync(dto, userId);
 
         if (result.IsSuccess && result.Data != null)
         {
+            _logger.LogInformation("Workplace created successfully with ID: {WorkplaceId}", result.Data.Id);
             return CreatedAtAction(nameof(GetWorkplace), new { id = result.Data.Id }, result.Data);
         }
 
+        _logger.LogError("Failed to create workplace: {ErrorMessage}", result.ErrorMessage);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Update existing workplace
+    /// Updates an existing workplace's information.
     /// </summary>
+    /// <param name="id">The unique identifier of the workplace to update.</param>
+    /// <param name="dto">The workplace update data transfer object.</param>
+    /// <returns>NoContent on success, or error response.</returns>
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateWorkplace(Guid id, [FromBody] UpdateWorkplaceDto dto)
     {
+        _logger.LogInformation("Updating workplace {WorkplaceId}", id);
         var result = await _workplaceService.UpdateWorkplaceAsync(id, dto);
+
         if (result.IsSuccess)
         {
+            _logger.LogInformation("Workplace {WorkplaceId} updated successfully", id);
             return NoContent();
         }
+
+        _logger.LogWarning("Failed to update workplace {WorkplaceId}: {ErrorMessage}", id, result.ErrorMessage);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Get workplace dependencies
+    /// Retrieves dependency information for a workplace (members, limits, invitations, expenses).
     /// </summary>
+    /// <param name="id">The unique identifier of the workplace.</param>
+    /// <returns>Dependency counts and whether the workplace can be deleted.</returns>
     [HttpGet("{id}/dependencies")]
     public async Task<ActionResult> GetWorkplaceDependencies(Guid id)
     {
+        _logger.LogInformation("Fetching dependencies for workplace {WorkplaceId}", id);
         var result = await _workplaceService.GetDependenciesAsync(id);
         return HandleResult(result);
     }
 
     /// <summary>
-    /// Delete workplace (only if no dependencies)
+    /// Deletes a workplace. Only possible if there are no dependencies.
     /// </summary>
+    /// <param name="id">The unique identifier of the workplace to delete.</param>
+    /// <returns>NoContent on success, or error response if dependencies exist.</returns>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteWorkplace(Guid id)
     {
+        _logger.LogInformation("Attempting to delete workplace {WorkplaceId}", id);
         var result = await _workplaceService.DeleteWorkplaceAsync(id);
+
         if (result.IsSuccess)
         {
+            _logger.LogInformation("Workplace {WorkplaceId} deleted successfully", id);
             return NoContent();
         }
+
+        _logger.LogWarning("Failed to delete workplace {WorkplaceId}: {ErrorMessage}", id, result.ErrorMessage);
         return HandleResult(result);
     }
 
     #region Helper Methods
 
+    /// <summary>
+    /// Gets the current authenticated user's ID from the claims.
+    /// </summary>
+    /// <returns>The user ID if authenticated, otherwise null.</returns>
     private string? GetCurrentUserId()
     {
         return User.FindFirstValue(ClaimTypes.NameIdentifier);
     }
 
+    /// <summary>
+    /// Handles service result and returns appropriate HTTP response for generic results.
+    /// </summary>
+    /// <typeparam name="T">The type of data in the result.</typeparam>
+    /// <param name="result">The service result to handle.</param>
+    /// <returns>Appropriate HTTP response based on result status.</returns>
     private ActionResult HandleResult<T>(ServiceResult<T> result)
     {
         if (result.IsSuccess)
@@ -122,6 +167,11 @@ public class WorkplacesController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// Handles service result and returns appropriate HTTP response.
+    /// </summary>
+    /// <param name="result">The service result to handle.</param>
+    /// <returns>Appropriate HTTP response based on result status.</returns>
     private ActionResult HandleResult(ServiceResult result)
     {
         if (result.IsSuccess)

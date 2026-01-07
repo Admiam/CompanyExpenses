@@ -1,4 +1,3 @@
-// Role labels - use getRoleLabel function for translated labels
 export const roleLabels = {
   admin: "roles.admin",
   manager: "roles.manager",
@@ -13,7 +12,6 @@ export const roleColors = {
 
 export type RoleType = keyof typeof roleLabels;
 
-// Helper function to get translated role label
 export const getRoleLabel = (role: RoleType | string, t: (key: string) => string): string => {
   const key = roleLabels[role as RoleType];
   return key ? t(key) : role;

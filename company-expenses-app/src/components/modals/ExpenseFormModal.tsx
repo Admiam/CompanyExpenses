@@ -55,47 +55,31 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [workplaces, setWorkplaces] = useState<Workplace[]>([]);
 
-  // Load categories and workplaces from API
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log("Loading data for user:", user);
-        console.log("User is admin:", userIsAdmin);
-
         const categoriesData = await categoriesApi.getCategories();
         setCategories(categoriesData.filter((c) => c.isActive));
 
-        // Load workplaces based on user role
         if (userIsAdmin) {
-          // Admin sees all workplaces
           const workplacesData = await workplacesApi.getWorkplaces();
           setWorkplaces(workplacesData.filter((w) => w.isActive));
         } else if (user?.id) {
-          // Manager/User sees only their assigned workplaces
-          console.log("Fetching workplaces for user ID:", user.id);
           const userWorkplaceMembers = await workplaceMembersApi.getUserWorkplaces(user.id);
-          console.log("User workplace members:", userWorkplaceMembers);
 
           if (userWorkplaceMembers && userWorkplaceMembers.length > 0) {
             const workplaceIds = userWorkplaceMembers.map((m) => m.workplaceId);
-            console.log("Workplace IDs:", workplaceIds);
 
-            // Fetch all workplaces and filter to user's workplaces
             const allWorkplaces = await workplacesApi.getWorkplaces();
             const userWorkplaces = allWorkplaces.filter((w) => w.isActive && workplaceIds.includes(w.id));
-            console.log("User workplaces:", userWorkplaces);
             setWorkplaces(userWorkplaces);
 
-            // Auto-select first workplace for non-admin users (only when creating new expense)
             if (userWorkplaces.length > 0 && !expense) {
               setFormData((prev) => ({ ...prev, workplaceId: userWorkplaces[0].id }));
             }
           } else {
-            console.warn("No workplace memberships found for user");
             setWorkplaces([]);
           }
-        } else {
-          console.warn("No user ID available for loading workplaces");
         }
       } catch (error) {
         console.error("Failed to load categories and workplaces:", error);
@@ -117,8 +101,6 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
         workplaceId: expense.workplaceId,
         currency: expense.currency || "CZK",
       });
-      // TODO: Load existing attachments from API
-      // fetchAttachments(expense.id);
     } else {
       setFormData({
         description: "",
@@ -137,17 +119,14 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
 
-    // Validate each file
     const validFiles: File[] = [];
 
     for (const file of files) {
-      // Validate file size using configuration
       if (file.size > FILE_CONFIG.maxFileSizeBytes) {
         alert(`${file.name}: Soubor je příliš velký. Maximální velikost je ${FILE_CONFIG.maxFileSizeMB} MB.`);
         continue;
       }
 
-      // Validate file type using configuration
       if (!FILE_CONFIG.allowedImageTypes.includes(file.type)) {
         alert(`${file.name}: Nepodporovaný typ souboru. Povolené jsou pouze obrázky (JPEG, PNG, GIF).`);
         continue;
@@ -158,10 +137,8 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
 
     if (validFiles.length === 0) return;
 
-    // Add to existing files
     setSelectedFiles((prev) => [...prev, ...validFiles]);
 
-    // Create previews for images
     validFiles.forEach((file) => {
       if (file.type.startsWith("image/")) {
         const reader = new FileReader();
@@ -172,7 +149,6 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
       }
     });
 
-    // Reset input
     e.target.value = "";
   };
 
@@ -190,7 +166,6 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate required fields
     if (!formData.description.trim()) {
       alert("Popis výdaje je povinný");
       return;
@@ -204,14 +179,10 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
       return;
     }
 
-    // For non-admin users, use their workplace, for admin validate workplace is selected
     let workplaceId = formData.workplaceId;
     if (!userIsAdmin) {
-      // Use the first workplace from user's workplaces
-      console.log("Non-admin user, workplaces available:", workplaces);
       if (workplaces.length > 0) {
         workplaceId = workplaces[0].id;
-        console.log("Using workplace:", workplaceId);
       } else {
         alert("Nemáte přiřazené žádné pracoviště. Kontaktujte administrátora.");
         return;
@@ -223,7 +194,6 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
       }
     }
 
-    // Convert files to base64
     const attachments = await Promise.all(
       selectedFiles.map(async (file) => {
         const base64 = await fileToBase64(file);
@@ -266,7 +236,6 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
           </DialogHeader>
 
           <div className="grid gap-4 py-4 px-6 overflow-y-auto flex-1">
-            {/* Scrollable content area */}
             <div className="grid gap-2">
               <Label htmlFor="description">
                 {t("common.description")} <span className="text-red-500">*</span>
@@ -367,12 +336,10 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
               </div>
             )}
 
-            {/* File Upload Section */}
             <div className="grid gap-2">
               <Label htmlFor="receipt">{t("expenses.attachments")}</Label>
 
               <div className="space-y-3">
-                {/* Existing attachments */}
                 {existingAttachments.length > 0 && (
                   <div className="space-y-2">
                     {existingAttachments.map((attachment) => (
@@ -389,7 +356,6 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
                   </div>
                 )}
 
-                {/* Selected files with previews */}
                 {filePreviews.length > 0 && (
                   <div className="grid grid-cols-2 gap-2">
                     {filePreviews.map((item, index) => (
@@ -413,7 +379,6 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
                   </div>
                 )}
 
-                {/* Upload button */}
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors">
                   <label htmlFor="receipt" className="cursor-pointer flex flex-col items-center gap-2">
                     <Upload className="h-6 w-6 text-gray-400" />
@@ -425,7 +390,6 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
               </div>
             </div>
           </div>
-          {/* End scrollable content */}
 
           <DialogFooter className="flex-shrink-0 px-6 pb-6 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

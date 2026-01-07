@@ -18,7 +18,6 @@ export const getInvitationStatusKey = (status: InvitationStatusType): string => 
   }
 };
 
-// Legacy function - returns untranslated labels
 export const getInvitationStatusLabel = (status: InvitationStatusType): string => {
   switch (status) {
     case InvitationStatus.Pending:

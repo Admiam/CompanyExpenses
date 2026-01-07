@@ -3,6 +3,9 @@ using System.Net.Mail;
 
 namespace CompanyExpenses.Api.Services;
 
+/// <summary>
+/// Email service implementation for sending invitation and notification emails via SMTP.
+/// </summary>
 public class EmailService : IEmailService
 {
     private readonly IConfiguration _configuration;
@@ -16,8 +19,15 @@ public class EmailService : IEmailService
         _invitationExpirationDays = configuration.GetValue<int>("InvitationSettings:ExpirationDays", 7);
     }
 
+    /// <summary>
+    /// Sends an invitation email with a registration link to the specified email address.
+    /// </summary>
+    /// <param name="email">The recipient email address.</param>
+    /// <param name="token">The invitation token for registration.</param>
+    /// <param name="workplaceName">Optional workplace name to include in the email.</param>
     public async Task SendInvitationEmailAsync(string email, string token, string? workplaceName)
     {
+        _logger.LogInformation("Sending invitation email to {Email}", email);
         var authServerUrl = _configuration["AppSettings:AuthServerUrl"] ?? "https://localhost:7169";
         var invitationLink = $"{authServerUrl}/Account/Register?token={token}";
 
@@ -50,6 +60,12 @@ public class EmailService : IEmailService
         await SendEmailAsync(email, subject, htmlMessage);
     }
 
+    /// <summary>
+    /// Sends an email via SMTP. Does not throw on failure - email failures are logged but don't block operations.
+    /// </summary>
+    /// <param name="email">The recipient email address.</param>
+    /// <param name="subject">The email subject.</param>
+    /// <param name="htmlMessage">The HTML body content.</param>
     private async Task SendEmailAsync(string email, string subject, string htmlMessage)
     {
         try

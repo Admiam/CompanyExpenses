@@ -1,6 +1,6 @@
 export const AUTH_CONFIG = {
-  authServerUrl: import.meta.env.VITE_AUTH_SERVER_URL || "https://localhost:7169",
-  apiServerUrl: import.meta.env.VITE_API_BASE_URL || "https://localhost:7200",
+  authServerUrl: import.meta.env.VITE_AUTH_SERVER_URL || "http://localhost:5169",
+  apiServerUrl: import.meta.env.VITE_API_BASE_URL || "http://localhost:5200",
   cookieName: ".AspNetCore.Identity.Application",
   loginUrl: "/Account/Login",
   logoutUrl: "/Account/Logout",

@@ -82,6 +82,16 @@ services:
       - ConnectionStrings__AuthConnection=Server=db,1433;Database=company_expenses_auth;User Id=sa;Password=CompanyExpenses123!;TrustServerCertificate=True;MultipleActiveResultSets=true;
       - CookieSettings__Domain=localhost
       - CorsSettings__AllowedOrigins=http://localhost:3000,http://localhost:5173
+      # Email Settings - Configure these to enable email sending for invitations
+      # You can use Gmail, Mailtrap, SendGrid, or any SMTP service
+      - EmailSettings__SmtpHost=${SMTP_HOST:-}
+      - EmailSettings__SmtpPort=${SMTP_PORT:-587}
+      - EmailSettings__SmtpUsername=${SMTP_USERNAME:-}
+      - EmailSettings__SmtpPassword=${SMTP_PASSWORD:-}
+      - EmailSettings__FromEmail=${SMTP_FROM_EMAIL:-noreply@companyexpenses.local}
+      - EmailSettings__FromName=${SMTP_FROM_NAME:-Company Expenses}
+      - AppSettings__AuthServerUrl=http://localhost:5169
+      - AppSettings__FrontendUrl=http://localhost:3000
     ports:
       - "5200:80"
     depends_on:
@@ -105,8 +115,8 @@ services:
       context: ./company-expenses-app
       dockerfile: Dockerfile
       args:
-        - VITE_API_BASE_URL=http://localhost:5200
-        - VITE_AUTH_SERVER_URL=http://localhost:5169
+        - VITE_API_URL=http://localhost:5200
+        - VITE_AUTH_URL=http://localhost:5169
     container_name: company-expenses-app
     ports:
       - "3000:80"

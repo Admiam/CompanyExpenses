@@ -79,15 +79,6 @@ const actionLabels = {
   ReturnedForRevision: "Vráceno k úpravě",
 };
 
-const getActionLabel = (action: string, t: (key: string) => string) => {
-  const labels: Record<string, string> = {
-    Approved: t("expenses.status.approved"),
-    Rejected: t("expenses.status.rejected"),
-    ReturnedForRevision: t("common.edit"),
-  };
-  return labels[action] || action;
-};
-
 export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDetailModalProps) {
   const { t } = useTranslation();
   const [expense, setExpense] = useState<ExpenseDetail | null>(null);
@@ -101,7 +92,7 @@ export function ExpenseDetailModal({ open, onOpenChange, expenseId }: ExpenseDet
   const [isEditingAttachments, setIsEditingAttachments] = useState(false);
   const [newAttachments, setNewAttachments] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<ExpenseAttachment[]>([]);
-  const [attachmentsToDelete, setAttachmentsToDelete] = useState<string[]>([]);
+  const [_attachmentsToDelete, setAttachmentsToDelete] = useState<string[]>([]);
 
   const loadExpenseDetail = async () => {
     if (!expenseId) return;

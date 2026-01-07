@@ -5,7 +5,7 @@ export class ApiProxy {
 
   constructor(baseURL?: string, timeout?: number) {
     this.axiosInstance = axios.create({
-      baseURL: baseURL || import.meta.env.VITE_API_BASE_URL || "https://localhost:7200",
+      baseURL: baseURL || import.meta.env.VITE_API_BASE_URL || "http://localhost:5200",
       timeout: timeout || Number(import.meta.env.VITE_API_TIMEOUT) || 30000,
       headers: {
         "Content-Type": "application/json",

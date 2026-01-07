@@ -1,6 +1,7 @@
 @page "/Account/LoginSuccess"
 
 @inject NavigationManager NavigationManager
+@inject IConfiguration Configuration
 
 <PageTitle>Login Successful</PageTitle>
 
@@ -13,9 +14,10 @@
         if (firstRender)
         {
             // After rendering (ensuring cookies are set), redirect to returnUrl or default dashboard
+            var frontendUrl = Configuration["AppSettings:FrontendUrl"] ?? "http://localhost:3000";
             var redirectUrl = !string.IsNullOrEmpty(ReturnUrl) 
                 ? ReturnUrl 
-                : "http://localhost:5173/dashboard";
+                : $"{frontendUrl}/dashboard";
             
             // Use JavaScript to redirect after a short delay to ensure cookies are set
             NavigationManager.NavigateTo(redirectUrl, forceLoad: true);

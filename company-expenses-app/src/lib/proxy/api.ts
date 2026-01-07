@@ -17,6 +17,7 @@ import type {
   WorkplaceMember,
   CreateWorkplaceMemberRequest,
   UpdateWorkplaceMemberRequest,
+  WorkplaceDependencies,
   Invitation,
   CreateInvitationRequest,
   AcceptInvitationRequest,
@@ -156,15 +157,15 @@ export const workplaceLimitsApi = {
   },
 
   async createLimit(data: CreateWorkplaceLimitRequest): Promise<WorkplaceLimit> {
-    return apiProxy.post<WorkplaceLimit>("/api/workplacelimits", data);
+    return apiProxy.post<WorkplaceLimit>(`/api/workplacelimits/${data.workplaceId}`, data);
   },
 
   async updateLimit(id: string, data: UpdateWorkplaceLimitRequest): Promise<void> {
-    return apiProxy.put(`/api/workplacelimits/${id}`, data);
+    return apiProxy.put(`/api/workplacelimits/${data.workplaceId}/${id}`, data);
   },
 
-  async deleteLimit(id: string): Promise<void> {
-    return apiProxy.delete(`/api/workplacelimits/${id}`);
+  async deleteLimit(workplaceId: string, id: string): Promise<void> {
+    return apiProxy.delete(`/api/workplacelimits/${workplaceId}/${id}`);
   },
 };
 

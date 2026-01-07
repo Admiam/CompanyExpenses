@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { ExpenseFormModal } from "./modals/ExpenseFormModal";
 
-import React, { useState } from "react";
+import { useState } from "react";
 
 export function NavMain({
   items,

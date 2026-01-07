@@ -3,6 +3,7 @@
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
+@inject IConfiguration Configuration
 
 <PageTitle>Home - Company Expenses</PageTitle>
 
@@ -91,7 +92,7 @@
                         </div>
 
                         <div class="space-y-4 flex flex-col items-center" style="flex-direction: column">
-                            <a href="http://localhost:5173/dashboard"
+                            <a href="@FrontendDashboardUrl"
                                 class="bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition font-medium shadow-sm"
                                 style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">
@@ -133,3 +134,7 @@
         </div>
     </div>
 </div>
+
+@code {
+    private string FrontendDashboardUrl => $"{Configuration["AppSettings:FrontendUrl"] ?? "http://localhost:3000"}/dashboard";
+}

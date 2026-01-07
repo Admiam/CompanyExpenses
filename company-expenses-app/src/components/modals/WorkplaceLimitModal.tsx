@@ -91,7 +91,7 @@ export function WorkplaceLimitModal({ open, onOpenChange, workplaceId, workplace
     }
 
     try {
-      await workplaceLimitsApi.deleteLimit(id);
+      await workplaceLimitsApi.deleteLimit(workplaceId, id);
       toast.success("Limit deleted");
       loadData();
       onLimitsUpdated?.();

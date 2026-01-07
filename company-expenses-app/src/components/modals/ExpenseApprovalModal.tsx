@@ -21,13 +21,11 @@ interface ExpenseApprovalModalProps {
 
 export function ExpenseApprovalModal({ open, onOpenChange, expense, onApprove, onReject }: ExpenseApprovalModalProps) {
   const [note, setNote] = useState("");
-  const [isApproving, setIsApproving] = useState(false);
 
   const handleApprove = () => {
     if (expense) {
       onApprove(expense.id, note);
       setNote("");
-      setIsApproving(false);
     }
   };
 
@@ -35,7 +33,6 @@ export function ExpenseApprovalModal({ open, onOpenChange, expense, onApprove, o
     if (expense) {
       onReject(expense.id, note);
       setNote("");
-      setIsApproving(false);
     }
   };
 

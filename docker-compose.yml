@@ -55,7 +55,7 @@ services:
       - Authentication__Google__ClientId=${GOOGLE_CLIENT_ID:-}
       - Authentication__Google__ClientSecret=${GOOGLE_CLIENT_SECRET:-}
     ports:
-      - "5169:80"
+      - "7169:80"
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -90,7 +90,7 @@ services:
       - EmailSettings__SmtpPassword=${SMTP_PASSWORD:-}
       - EmailSettings__FromEmail=${SMTP_FROM_EMAIL:-noreply@companyexpenses.local}
       - EmailSettings__FromName=${SMTP_FROM_NAME:-Company Expenses}
-      - AppSettings__AuthServerUrl=http://localhost:5169
+      - AppSettings__AuthServerUrl=http://localhost:7169
       - AppSettings__FrontendUrl=http://localhost:3000
     ports:
       - "5200:80"
@@ -115,8 +115,8 @@ services:
       context: ./company-expenses-app
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=http://localhost:5200
-        - VITE_AUTH_URL=http://localhost:5169
+        - VITE_API_BASE_URL=http://localhost:5200
+        - VITE_AUTH_SERVER_URL=http://localhost:7169
     container_name: company-expenses-app
     ports:
       - "3000:80"

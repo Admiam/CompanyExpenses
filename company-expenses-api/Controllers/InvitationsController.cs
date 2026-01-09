@@ -105,11 +105,13 @@ public class InvitationsController : ControllerBase
     /// Accepts an invitation and adds the user to the associated workplace.
     /// </summary>
     /// <param name="id">The unique identifier of the invitation to accept.</param>
+    /// <param name="request">Optional request body containing userId for server-to-server calls.</param>
     /// <returns>Success message or error response.</returns>
     [HttpPost("{id}/accept")]
-    public async Task<IActionResult> AcceptInvitation(Guid id)
+    public async Task<IActionResult> AcceptInvitation(Guid id, [FromBody] AcceptInvitationRequest? request = null)
     {
-        var userId = GetCurrentUserId() ?? string.Empty;
+        // Use userId from request body (server-to-server) or from auth token (direct call)
+        var userId = request?.UserId ?? GetCurrentUserId() ?? string.Empty;
         _logger.LogInformation("User {UserId} accepting invitation {InvitationId}", userId, id);
 
         var result = await _invitationService.AcceptInvitationAsync(id, userId);
@@ -249,4 +251,15 @@ public class InvitationsController : ControllerBase
     }
 
     #endregion
+}
+
+/// <summary>
+/// Request model for accepting an invitation via server-to-server call.
+/// </summary>
+public class AcceptInvitationRequest
+{
+    /// <summary>
+    /// The ID of the user accepting the invitation.
+    /// </summary>
+    public string? UserId { get; set; }
 }

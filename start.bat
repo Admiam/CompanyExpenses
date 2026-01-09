@@ -55,7 +55,7 @@ echo   Company Expenses is now running!
 echo ==============================================
 echo.
 echo   Frontend App:   http://localhost:3000
-echo   Auth Server:    http://localhost:5169
+echo   Auth Server:    http://localhost:7169
 echo   API Server:     http://localhost:5200
 echo.
 echo   Admin Login Credentials:

@@ -68,8 +68,8 @@ public class ExpenseService : IExpenseService
             EmployeeUserId = e.EmployeeUserId,
             WorkplaceId = e.WorkplaceId,
             CategoryId = e.CategoryId,
-            Workplace = e.Workplace != null ? new WorkplaceInfoDto { Id = e.Workplace.Id, Name = e.Workplace.Name } : null,
-            Category = e.Category != null ? new CategoryInfoDto { Id = e.Category.Id, Name = e.Category.Name } : null,
+            Workplace = e.Workplace != null ? new WorkplaceInfoDto { Id = e.Workplace.Id, Name = e.Workplace.Name } : null!,
+            Category = e.Category != null ? new CategoryInfoDto { Id = e.Category.Id, Name = e.Category.Name } : null!,
             SubmittedAt = e.SubmittedAt,
             CreatedAt = e.CreatedAt
         });
@@ -103,8 +103,8 @@ public class ExpenseService : IExpenseService
             EmployeeUserId = expense.EmployeeUserId,
             WorkplaceId = expense.WorkplaceId,
             CategoryId = expense.CategoryId,
-            Workplace = expense.Workplace != null ? new WorkplaceInfoDto { Id = expense.Workplace.Id, Name = expense.Workplace.Name } : null,
-            Category = expense.Category != null ? new CategoryInfoDto { Id = expense.Category.Id, Name = expense.Category.Name } : null,
+            Workplace = expense.Workplace != null ? new WorkplaceInfoDto { Id = expense.Workplace.Id, Name = expense.Workplace.Name } : null!,
+            Category = expense.Category != null ? new CategoryInfoDto { Id = expense.Category.Id, Name = expense.Category.Name } : null!,
             SubmittedAt = expense.SubmittedAt,
             CreatedAt = expense.CreatedAt,
             LastDecisionAt = expense.LastDecisionAt,

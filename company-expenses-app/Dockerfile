@@ -5,18 +5,18 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies (use npm install if no lock file exists)
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+# Install dependencies
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Set build-time environment variables
-ARG VITE_API_URL=http://localhost:5200
-ARG VITE_AUTH_URL=http://localhost:5169
+ARG VITE_API_BASE_URL=http://localhost:5200
+ARG VITE_AUTH_SERVER_URL=http://localhost:7169
 
-ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_AUTH_URL=$VITE_AUTH_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_AUTH_SERVER_URL=$VITE_AUTH_SERVER_URL
 
 # Build the application
 RUN npm run build

@@ -39,7 +39,7 @@ docker compose up --build -d
 | Služba                   | URL                   |
 | ------------------------ | --------------------- |
 | 🌐 **Frontend aplikace** | http://localhost:3000 |
-| 🔐 Auth Server           | http://localhost:5169 |
+| 🔐 Auth Server           | http://localhost:7169 |
 | 📡 API Server            | http://localhost:5200 |
 
 ---
@@ -220,6 +220,48 @@ npm run dev
 ```
 
 Nebo použijte VS Code Tasks: `Ctrl+Shift+P` → `Tasks: Run Task` → `watch-full-stack`
+
+---
+
+## 🧪 Testování
+
+Projekt obsahuje jednotkové a integrační testy pro databázi a služby.
+
+### Spuštění všech testů
+
+```bash
+# Spusťte z kořenového adresáře projektu
+dotnet test
+```
+
+### Spuštění testů konkrétního projektu
+
+```bash
+# Testy databázové vrstvy
+dotnet test company-expenses-database.tests
+
+# Testy business logiky
+dotnet test company-expenses-services.tests
+```
+
+### Spuštění testů s detailním výstupem
+
+```bash
+dotnet test --verbosity detailed --logger "console;verbosity=detailed"
+```
+
+### Spuštění testů v Docker kontejneru
+
+```bash
+docker compose run --rm api dotnet test
+```
+
+### Testové projekty
+
+| Projekt | Obsah | Soubory |
+| --- | --- | --- |
+| **company-expenses-database.tests** | Testy databázových repository | `WorkplaceRepositoryIntegrationTests.cs` |
+| **company-expenses-services.tests** | Testy business logiky služeb | `WorkplaceServiceTests.cs` |
 
 ---
 

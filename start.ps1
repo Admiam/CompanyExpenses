@@ -57,7 +57,7 @@ Write-Host "  Company Expenses is now running!" -ForegroundColor Green
 Write-Host "=============================================="
 Write-Host ""
 Write-Host "  Frontend App:   " -NoNewline; Write-Host "http://localhost:3000" -ForegroundColor Cyan
-Write-Host "  Auth Server:    " -NoNewline; Write-Host "http://localhost:5169" -ForegroundColor Cyan
+Write-Host "  Auth Server:    " -NoNewline; Write-Host "http://localhost:7169" -ForegroundColor Cyan
 Write-Host "  API Server:     " -NoNewline; Write-Host "http://localhost:5200" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Admin Login Credentials:"

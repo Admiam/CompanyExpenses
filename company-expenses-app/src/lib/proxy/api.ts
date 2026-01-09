@@ -190,8 +190,8 @@ export const workplaceMembersApi = {
     return apiProxy.get<WorkplaceMember[]>(`/api/workplacemembers/workplace/${workplaceId}`);
   },
 
-  async getUserWorkplaces(userId: string): Promise<WorkplaceMember[]> {
-    return apiProxy.get<WorkplaceMember[]>(`/api/workplacemembers/user/${userId}`);
+  async getUserWorkplaces(userId: string): Promise<Workplace[]> {
+    return apiProxy.get<Workplace[]>(`/api/workplacemembers/user/${userId}`);
   },
 
   async getMember(id: string): Promise<WorkplaceMember> {

@@ -65,17 +65,15 @@ export function ExpenseFormModal({ open, onOpenChange, expense, onSave }: Expens
           const workplacesData = await workplacesApi.getWorkplaces();
           setWorkplaces(workplacesData.filter((w) => w.isActive));
         } else if (user?.id) {
-          const userWorkplaceMembers = await workplaceMembersApi.getUserWorkplaces(user.id);
+          // API returns Workplace[] directly for this user
+          const userWorkplaces = await workplaceMembersApi.getUserWorkplaces(user.id);
 
-          if (userWorkplaceMembers && userWorkplaceMembers.length > 0) {
-            const workplaceIds = userWorkplaceMembers.map((m) => m.workplaceId);
+          if (userWorkplaces && userWorkplaces.length > 0) {
+            const activeWorkplaces = userWorkplaces.filter((w) => w.isActive);
+            setWorkplaces(activeWorkplaces);
 
-            const allWorkplaces = await workplacesApi.getWorkplaces();
-            const userWorkplaces = allWorkplaces.filter((w) => w.isActive && workplaceIds.includes(w.id));
-            setWorkplaces(userWorkplaces);
-
-            if (userWorkplaces.length > 0 && !expense) {
-              setFormData((prev) => ({ ...prev, workplaceId: userWorkplaces[0].id }));
+            if (activeWorkplaces.length > 0 && !expense) {
+              setFormData((prev) => ({ ...prev, workplaceId: activeWorkplaces[0].id }));
             }
           } else {
             setWorkplaces([]);
